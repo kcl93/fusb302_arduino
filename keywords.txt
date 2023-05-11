@@ -1,0 +1,49 @@
+###############################################
+# Syntax coloring for the task scheduler library
+###############################################
+
+###############################################
+# Datatypes (KEYWORD1)
+###############################################
+
+PD_UFP_c	KEYWORD1
+PD_UFP_Log_c	KEYWORD1
+PD_power_option_t	KEYWORD1
+status_log_t	KEYWORD1
+pd_log_level_t	KEYWORD1
+status_power_t	KEYWORD1
+
+###############################################
+# Functions (KEYWORD2)
+###############################################
+
+init	KEYWORD2
+init_PPS	KEYWORD2
+run	KEYWORD2
+is_power_ready	KEYWORD2
+is_PPS_ready	KEYWORD2
+is_ps_transition	KEYWORD2
+get_voltage	KEYWORD2
+get_current	KEYWORD2
+get_ps_status	KEYWORD2
+set_PPS	KEYWORD2
+set_power_option	KEYWORD2
+clock_prescale_set	KEYWORD2
+print_status	KEYWORD2
+status_log_readline	KEYWORD2
+
+######################################
+# Constants (LITERAL1)
+#######################################
+PD_LOG_LEVEL_INFO	LITERAL1
+PD_LOG_LEVEL_VERBOSE	LITERAL1
+PD_POWER_OPTION_MAX_5V	LITERAL1
+PD_POWER_OPTION_MAX_9V	LITERAL1
+PD_POWER_OPTION_MAX_12V	LITERAL1
+PD_POWER_OPTION_MAX_15V	LITERAL1
+PD_POWER_OPTION_MAX_20V	LITERAL1
+PD_POWER_OPTION_MAX_VOLTAGE	LITERAL1
+PD_POWER_OPTION_MAX_CURRENT	LITERAL1
+PD_POWER_OPTION_MAX_POWER	LITERAL1
+
+####################### END ############################
