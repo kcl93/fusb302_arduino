@@ -51,8 +51,8 @@ typedef struct {
 
 struct PD_msg_state_t {
     const char * name;
-    void (*handler)(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-    bool (*responder)(PD_protocol_t * p, uint16_t * header, uint32_t * obj);
+    void (*handler)(uint16_t header, uint32_t * obj, event_t * events);
+    bool (*responder)(uint16_t * header, uint32_t * obj);
 };
 
 /* Optimize RAM usage on AVR MCU by allocate const in PROGMEM */
@@ -69,25 +69,6 @@ struct PD_msg_state_t {
 #endif
 
 #define T(name) static const char str_ ## name [] PROGMEM = #name
-
-static void handler_good_crc   (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_goto_min   (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_accept     (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_reject     (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_ps_rdy     (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_source_cap (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_BIST       (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_alert      (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_vender_def (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-static void handler_PPS_Status (PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events);
-
-static bool responder_get_sink_cap  (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_reject        (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_soft_reset    (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_source_cap    (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_vender_def    (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_sink_cap_ext  (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
-static bool responder_not_support   (PD_protocol_t * p, uint16_t * header, uint32_t * obj);
 
 T(C0); T(GoodCRC); T(GotoMin); T(Accept); T(Reject); T(Ping); T(PS_RDY); T(Get_Src_Cap);
 T(Get_Sink_Cap); T(DR_Swap); T(PR_Swap); T(VCONN_Swap); T(Wait); T(Soft_Rst); T(Dat_Rst); T(Dat_Rst_Cpt);
@@ -182,33 +163,40 @@ static const PD_power_option_setting_t power_option_setting[8] = {
     {.limit = 12500,.use_voltage = 1, .use_current = 1},    /* PD_POWER_OPTION_MAX_POWER */  
 };
 
-static uint8_t evaluate_src_cap(PD_protocol_t * p, uint16_t PPS_voltage, uint8_t PPS_current)
+uint8_t PD_UFP_Protocol_c::evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_current)
 {
     const PD_power_option_setting_t * setting;
     PD_power_info_t info;
-    uint8_t option = p->power_option;
+    uint8_t option = this->power_option;
     uint8_t selected = 0;
 
     /* If selected option is not available, use first PDO. Reference: 6.4.1 Capabilities Message
        The vSafe5V Fixed Supply Object Shall always be the first object. */
-    if (option >= sizeof(power_option_setting) / sizeof(power_option_setting[0])) {
+    if (option >= sizeof(power_option_setting) / sizeof(power_option_setting[0]))
+    {
         return 0;
     }
 
     setting = &power_option_setting[option];
-    for (uint8_t n = 0; PD_protocol_get_power_info(p, n, &info); n++) {
-        if (info.type == PD_PDO_TYPE_AUGMENTED_PDO) {
+    for (uint8_t n = 0; get_power_info(n, &info); n++)
+    {
+        if (info.type == PD_PDO_TYPE_AUGMENTED_PDO)
+        {
             uint16_t pps_v = PPS_voltage * 2;    /* Voltage in 20mV units */
             uint16_t pps_i = PPS_current * 5;    /* Current in 50mA units */
             /* PD_power_info_t: Voltage in 50mV units, Current in 10mA units */
-            if (info.min_v * 5 <= pps_v && pps_v <= info.max_v * 5 && pps_i <= info.max_i) {
+            if (info.min_v * 5 <= pps_v && pps_v <= info.max_v * 5 && pps_i <= info.max_i)
+            {
                 return n;
             }
-        } else {
+        }
+        else
+        {
             uint8_t v = setting->use_voltage ? info.max_v >> 2 : 1;
             uint8_t i = setting->use_current ? info.max_i >> 2 : 1;
             uint16_t power = (uint16_t)v * i;  /* reduce 10-bit power info to 8-bit and use 8-bit x 8-bit multiplication */
-            if (power <= setting->limit) {
+            if (power <= setting->limit)
+            {
                 selected = n;
             }
         }
@@ -216,7 +204,7 @@ static uint8_t evaluate_src_cap(PD_protocol_t * p, uint16_t PPS_voltage, uint8_t
     return selected;
 }
 
-static void parse_header(PD_msg_header_info_t * info, uint16_t header)
+void PD_UFP_Protocol_c::parse_header(PD_msg_header_info_t * info, uint16_t header)
 {
     /* Reference: 6.2.1.1 Message Header */ 
     info->type = (header >> 0) & 0x1F;                  /*   4...0  Message Type */
@@ -225,108 +213,115 @@ static void parse_header(PD_msg_header_info_t * info, uint16_t header)
     info->num_of_obj = (header >> 12) & 0x7;            /* 14...12  Number of Data Objects */
 }
 
-static uint16_t generate_header(PD_protocol_t * p, uint8_t type, uint8_t obj_count)
+uint16_t PD_UFP_Protocol_c::generate_header(uint8_t type, uint8_t obj_count)
 {
     /* Reference: 6.2.1.1 Message Header */ 
     uint16_t h = ((uint16_t)type << 0) |                      /*   4...0  Message Type */
                  ((uint16_t)PD_SPECIFICATION_REVISION << 6) | /*   7...6  Specification Revision */
-                 ((uint16_t)p->message_id << 9) |             /*  11...9  MessageID */
+                 ((uint16_t)this->message_id << 9) |             /*  11...9  MessageID */
                  ((uint16_t)obj_count << 12);                 /* 14...12  Number of Data Objects */
-    p->tx_msg_header = h;
+    this->tx_msg_header = h;
     return h;
 }
 
-static uint16_t generate_header_ext(PD_protocol_t * p, uint8_t type, uint8_t data_size, uint32_t * obj)
+uint16_t PD_UFP_Protocol_c::generate_header_ext(uint8_t type, uint8_t data_size, uint32_t * obj)
 {
-    uint16_t h = generate_header(p, type, (data_size + 5) >> 2); /* set obj_count to fit ext header and data */
+    uint16_t h = this->generate_header(type, (data_size + 5) >> 2); /* set obj_count to fit ext header and data */
     h |= (uint16_t)1 << 15;     /* Set extended field */
     /* Reference: 6.2.1.2 Extended Message Headerr */ 
     obj[0] |= ((uint16_t)data_size << 0) |  /*   8...0  ata Size */
               /* Assume short message, set Chunk Number and Request Chunk to 0 */
               ((uint16_t)1 << 15);          /*      15  Chunked */
-    p->tx_msg_header = h;
+    this->tx_msg_header = h;
     return h;
 }
 
-static void handler_good_crc(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handler_good_crc(uint16_t header, uint32_t * obj, event_t * events)
 {
     /* Reference: 6.2.1.3 Message ID 
        MessageIDCounter Shall be initialized to zero at power-on / reset, increment when receive GoodCRC Message */
-    uint8_t message_id = p->message_id;
-    if (++message_id > 7) {
+    uint8_t message_id = this->message_id;
+    if (++message_id > 7)
+    {
         message_id = 0;
     }
-    p->message_id = message_id;
+    this->message_id = message_id;
 }
 
-static void handler_goto_min(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handler_goto_min(uint16_t header, uint32_t * obj, event_t * events)
 {
     // Not implemented
 }
 
-static void handler_accept(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handler_accept(uint16_t header, uint32_t * obj, event_t * events)
 {
-    if (events) {
+    if (events)
+    {
         *events |= PD_PROTOCOL_EVENT_ACCEPT;
     }
 }
 
-static void handler_reject(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handler_reject(uint16_t header, uint32_t * obj, event_t * events)
 {
-    if (events) {
+    if (events)
+    {
         *events |= PD_PROTOCOL_EVENT_PS_RDY;
     }
 }
 
-static void handler_ps_rdy(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handler_ps_rdy(uint16_t header, uint32_t * obj, event_t * events)
 {
-    if (events) {
+    if (events)
+    {
         *events |= PD_PROTOCOL_EVENT_PS_RDY;
     }
 }
 
-static void handler_source_cap(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void handler_source_cap(uint16_t header, uint32_t * obj, event_t * events)
 {
     PD_msg_header_info_t h;
     parse_header(&h, header);
-    p->power_data_obj_count = h.num_of_obj;
-    for (uint8_t i = 0; i < h.num_of_obj; i++) {
-        p->power_data_obj[i] = obj[i];
+    this->power_data_obj_count = h.num_of_obj;
+    for (uint8_t i = 0; i < h.num_of_obj; i++)
+    {
+        this->power_data_obj[i] = obj[i];
     }
-    p->power_data_obj_selected = evaluate_src_cap(p, p->PPS_voltage, p->PPS_current);
-    if (events) {
+    this->power_data_obj_selected = this->evaluate_src_cap(this->PPS_voltage, this->PPS_current);
+    if (events)
+    {
         *events |= PD_PROTOCOL_EVENT_SRC_CAP;
     }
 }
 
-static void handler_BIST(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+static void PD_UFP_Protocol_c::handler_BIST(uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement BIST
 }
 
-static void handler_alert(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+static void PD_UFP_Protocol_c::handler_alert(uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement alert
 }
 
-static void handler_vender_def(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+static void PD_UFP_Protocol_c::handler_vender_def(uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement VDM parsing
 }
 
-static void handler_PPS_Status(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+static void PD_UFP_Protocol_c::handler_PPS_Status(uint16_t header, uint32_t * obj, event_t * events)
 {
     /* Handle chunked Extended message,  Offset 2 byte for Extended Message Header */
-    p->PPSSDB[0] = (obj[0] >> 16) & 0xFF;
-    p->PPSSDB[1] = (obj[0] >> 24) & 0xFF;
-    p->PPSSDB[2] = (obj[1] >>  0) & 0xFF;
-    p->PPSSDB[3] = (obj[1] >>  8) & 0xFF;
-    if (events) {
+    this->PPSSDB[0] = (obj[0] >> 16) & 0xFF;
+    this->PPSSDB[1] = (obj[0] >> 24) & 0xFF;
+    this->PPSSDB[2] = (obj[1] >>  0) & 0xFF;
+    this->PPSSDB[3] = (obj[1] >>  8) & 0xFF;
+    if (events)
+    {
         *events |= PD_PROTOCOL_EVENT_PPS_STATUS;
     }
 }
 
-static bool responder_get_sink_cap(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_get_sink_cap(uint16_t * header, uint32_t * obj)
 {
     /* Reference: 6.4.1.2.3 Sink Fixed Supply Power Data Object */
     uint32_t data = ((uint32_t)100 << 0) |                        /* B9...0     Operational Current in 10mA units */
@@ -335,11 +330,11 @@ static bool responder_get_sink_cap(PD_protocol_t * p, uint16_t * header, uint32_
                     ((uint32_t)1 << 28) |                         /* B28        Higher Capability */
                     ((uint32_t)PD_PDO_TYPE_FIXED_SUPPLY << 30);   /* B31...30   Fixed supply */
     *obj = data; /* Only implement 5V 1A Fix supply PDO. Source rarely request sink cap */
-    *header = generate_header(p, PD_DATA_MSG_TYPE_SINK_CAP, 1);
+    *header = this->generate_header(PD_DATA_MSG_TYPE_SINK_CAP, 1);
     return true;
 }
 
-static bool responder_sink_cap_ext(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_sink_cap_ext(uint16_t * header, uint32_t * obj)
 {
     /* Reference: 6.5.13 Sink_Capabilities_Extended Message 
                   6.12.3 Applicability of Extended Messages  (Normative; Shall be supported) */
@@ -376,44 +371,48 @@ static bool responder_sink_cap_ext(PD_protocol_t * p, uint16_t * header, uint32_
         ((uint32_t)SINK_CAP_SINK_MAX_PDP << 16)     /* Byte     20  Maximum PDP */
     };
     uint8_t i;
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < 6; i++)
+    {
         COPY_PDO(obj[i], SKEDB[i]);
     }
-    *header = generate_header_ext(p, PD_EXT_MSG_TYPE_SINK_CAP_EXT, 21, obj);
+    *header = this->generate_header_ext(PD_EXT_MSG_TYPE_SINK_CAP_EXT, 21, obj);
     return false;
 }
 
-static bool responder_reject(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_reject(uint16_t * header, uint32_t * obj)
 {
-    *header = generate_header(p, PD_CONTROL_MSG_TYPE_REJECT, 0);
+    *header = this->generate_header(PD_CONTROL_MSG_TYPE_REJECT, 0);
     return true;
 }
 
-static bool responder_not_support(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_not_support(uint16_t * header, uint32_t * obj)
 {
-    *header = generate_header(p, PD_CONTROL_MSG_TYPE_NOT_SUPPORT, 0);
+    *header = this->generate_header(PD_CONTROL_MSG_TYPE_NOT_SUPPORT, 0);
     return true;
 }
 
-static bool responder_soft_reset(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_soft_reset(uint16_t * header, uint32_t * obj)
 {
-    *header = generate_header(p, PD_CONTROL_MSG_TYPE_ACCEPT, 0);
+    *header = this->generate_header(PD_CONTROL_MSG_TYPE_ACCEPT, 0);
     return true;
 }
 
-static bool responder_source_cap(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_source_cap(uint16_t * header, uint32_t * obj)
 {
     PD_power_info_t info;
-    uint32_t data, pos = p->power_data_obj_selected + 1;
-    PD_protocol_get_power_info(p, p->power_data_obj_selected, &info);
+    uint32_t data, pos = this->power_data_obj_selected + 1;
+    this->get_power_info(this->power_data_obj_selected, &info);
     /* Reference: 6.4.2 Request Message */
-    if (info.type == PD_PDO_TYPE_AUGMENTED_PDO) {
+    if (info.type == PD_PDO_TYPE_AUGMENTED_PDO)
+    {
         /* NOTE: To compatible PD2.0 PHY, do not set Unchunked Extended Messages Supported */
-        data = ((uint32_t)p->PPS_current << 0) |    /* B6 ...0    Operating Current 50mA units */
-               ((uint32_t)p->PPS_voltage << 9) |    /* B19...9    Output Voltage in 20mV units */
+        data = ((uint32_t)this->PPS_current << 0) |    /* B6 ...0    Operating Current 50mA units */
+               ((uint32_t)this->PPS_voltage << 9) |    /* B19...9    Output Voltage in 20mV units */
                ((uint32_t)1 << 25) |                /* B25        USB Communication Capable */
                ((uint32_t)pos << 28);               /* B30...28   Object position (000b is Reserved and Shall Not be used) */
-    } else {
+    }
+    else
+    {
         uint32_t req = info.max_i ? info.max_i : info.max_p;
         data = ((uint32_t)req << 0) |    /* B9 ...0    Max Operating Current 10mA units / Max Operating Power in 250mW units */
                ((uint32_t)req << 10) |   /* B19...10   Operating Current 10mA units / Operating Power in 250mW units */
@@ -421,17 +420,17 @@ static bool responder_source_cap(PD_protocol_t * p, uint16_t * header, uint32_t 
                ((uint32_t)pos << 28);    /* B30...28   Object position (000b is Reserved and Shall Not be used) */
     }
     *obj = data;
-    *header = generate_header(p, PD_DATA_MSG_TYPE_REQUEST, 1);
+    *header = this->generate_header(PD_DATA_MSG_TYPE_REQUEST, 1);
     return true;
 }
 
-static bool responder_vender_def(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_vender_def(uint16_t * header, uint32_t * obj)
 {
     // TODO: implement VDM respond
     return false;
 }
 
-void PD_protocol_handle_msg(PD_protocol_t * p, uint16_t header, uint32_t * obj, PD_protocol_event_t * events)
+void PD_UFP_Protocol_c::handle_msg(uint16_t header, uint32_t * obj, event_t * events)
 {
     #define EXT_MSG_LIMIT   (sizeof(ext_msg_list) / sizeof(ext_msg_list[0]) - 1)
     #define DATA_MSG_LIMIT  (sizeof(data_msg_list) / sizeof(data_msg_list[0]) - 1)
@@ -439,89 +438,99 @@ void PD_protocol_handle_msg(PD_protocol_t * p, uint16_t header, uint32_t * obj, 
 
     const struct PD_msg_state_t * state;
     PD_msg_header_info_t h;
-    parse_header(&h, header);
-    p->rx_msg_header = header;
-    if ((header >> 15) & 0x1) {
+    this->parse_header(&h, header);
+    this->rx_msg_header = header;
+    if ((header >> 15) & 0x1)
+    {
         state = &ext_msg_list[h.type > EXT_MSG_LIMIT ? EXT_MSG_LIMIT : h.type];
-    } else if (h.num_of_obj) {
+    }
+    else if (h.num_of_obj)
+    {
         state = &data_msg_list[h.type > DATA_MSG_LIMIT ? DATA_MSG_LIMIT : h.type];
-    } else {
+    }
+    else
+    {
         state =&ctrl_msg_list[h.type > CTRL_MSG_LIMIT ? CTRL_MSG_LIMIT : h.type];
     }
-    SET_MSG_STAGE(p->msg_state, state);
-    if (p->msg_state->handler) {
-        p->msg_state->handler(p, header, obj, events);
+    SET_MSG_STAGE(this->msg_state, state);
+    if (this->msg_state->handler)
+    {
+        this->msg_state->handler(header, obj, events);
     }
 }
 
-bool PD_protocol_respond(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::respond(uint16_t * header, uint32_t * obj)
 {
-    if (p && p->msg_state && p->msg_state->responder && header && obj) {
-        return p->msg_state->responder(p, (uint16_t *)header, obj);
+    if (this->msg_state && this->msg_state->responder && header && obj)
+    {
+        return this->msg_state->responder((uint16_t *)header, obj);
     }
     return false;
 }
 
-void PD_protocol_create_get_src_cap(PD_protocol_t * p, uint16_t * header)
+void PD_UFP_Protocol_c::create_get_src_cap(uint16_t * header)
 {
-    *header = generate_header(p, PD_CONTROL_MSG_TYPE_GET_SRC_CAP, 0);
+    *header = this->generate_header(PD_CONTROL_MSG_TYPE_GET_SRC_CAP, 0);
 }
 
-void PD_protocol_create_get_PPS_status(PD_protocol_t *p, uint16_t *header)
+void PD_UFP_Protocol_c::create_get_PPS_status(uint16_t *header)
 {
-    *header = generate_header(p, PD_CONTROL_MSG_TYPE_GET_PPS_STATUS, 0);
+    *header = this->generate_header(PD_CONTROL_MSG_TYPE_GET_PPS_STATUS, 0);
 }
 
-void PD_protocol_create_request(PD_protocol_t * p, uint16_t * header, uint32_t * obj)
+void PD_UFP_Protocol_c::create_request(uint16_t * header, uint32_t * obj)
 {
-    responder_source_cap(p, header, obj);
+    this->responder_source_cap(header, obj);
 }
 
-bool PD_protocol_get_power_info(PD_protocol_t * p, uint8_t index, PD_power_info_t * power_info)
+bool PD_UFP_Protocol_c::get_power_info(uint8_t index, PD_power_info_t * power_info)
 {
-    if (p && index < p->power_data_obj_count && power_info) {
-        uint32_t obj = p->power_data_obj[index];
+    if (index < this->power_data_obj_count && power_info)
+    {
+        uint32_t obj = this->power_data_obj[index];
         power_info->type = (PD_power_data_obj_type_t)(obj >> 30);
-        switch (power_info->type) {
-        case PD_PDO_TYPE_FIXED_SUPPLY:
-            /* Reference: 6.4.1.2.3 Source Fixed Supply Power Data Object */
-            power_info->min_v = 0;
-            power_info->max_v = (obj >> 10) & 0x3FF;    /*  B19...10  Voltage in 50mV units */
-            power_info->max_i = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Current in 10mA units */
-            power_info->max_p = 0;
-            break;
-        case PD_PDO_TYPE_BATTERY:
-            /* Reference: 6.4.1.2.5 Battery Supply Power Data Object */
-            power_info->min_v = (obj >> 10) & 0x3FF;    /*  B19...10  Min Voltage in 50mV units */
-            power_info->max_v = (obj >> 20) & 0x3FF;    /*  B29...20  Max Voltage in 50mV units */
-            power_info->max_i = 0;
-            power_info->max_p = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Allowable Power in 250mW units */
-            break;
-        case PD_PDO_TYPE_VARIABLE_SUPPLY:
-            /* Reference: 6.4.1.2.4 Variable Supply (non-Battery) Power Data Object */
-            power_info->min_v = (obj >> 10) & 0x3FF;    /*  B19...10  Min Voltage in 50mV units */
-            power_info->max_v = (obj >> 20) & 0x3FF;    /*  B29...20  Max Voltage in 50mV units */
-            power_info->max_i = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Current in 10mA units */
-            power_info->max_p = 0;
-            break;
-        case PD_PDO_TYPE_AUGMENTED_PDO:
-            /* Reference: 6.4.1.3.4 Programmable Power Supply Augmented Power Data Object */
-            power_info->max_v = ((obj >> 17) & 0xFF) * 2;   /*  B24...17  Max Voltage in 100mV units */
-            power_info->min_v = ((obj >>  8) & 0xFF) * 2;   /*  B15...8   Min Voltage in 100mV units */
-            power_info->max_i = ((obj >>  0) & 0x7F) * 5;   /*  B6 ...0   Max Current in 50mA units */
-            power_info->max_p = 0;
-            break;
+        switch (power_info->type)
+        {
+            case PD_PDO_TYPE_FIXED_SUPPLY:
+                /* Reference: 6.4.1.2.3 Source Fixed Supply Power Data Object */
+                power_info->min_v = 0;
+                power_info->max_v = (obj >> 10) & 0x3FF;    /*  B19...10  Voltage in 50mV units */
+                power_info->max_i = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Current in 10mA units */
+                power_info->max_p = 0;
+                break;
+            case PD_PDO_TYPE_BATTERY:
+                /* Reference: 6.4.1.2.5 Battery Supply Power Data Object */
+                power_info->min_v = (obj >> 10) & 0x3FF;    /*  B19...10  Min Voltage in 50mV units */
+                power_info->max_v = (obj >> 20) & 0x3FF;    /*  B29...20  Max Voltage in 50mV units */
+                power_info->max_i = 0;
+                power_info->max_p = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Allowable Power in 250mW units */
+                break;
+            case PD_PDO_TYPE_VARIABLE_SUPPLY:
+                /* Reference: 6.4.1.2.4 Variable Supply (non-Battery) Power Data Object */
+                power_info->min_v = (obj >> 10) & 0x3FF;    /*  B19...10  Min Voltage in 50mV units */
+                power_info->max_v = (obj >> 20) & 0x3FF;    /*  B29...20  Max Voltage in 50mV units */
+                power_info->max_i = (obj >>  0) & 0x3FF;    /*  B9 ...0   Max Current in 10mA units */
+                power_info->max_p = 0;
+                break;
+            case PD_PDO_TYPE_AUGMENTED_PDO:
+                /* Reference: 6.4.1.3.4 Programmable Power Supply Augmented Power Data Object */
+                power_info->max_v = ((obj >> 17) & 0xFF) * 2;   /*  B24...17  Max Voltage in 100mV units */
+                power_info->min_v = ((obj >>  8) & 0xFF) * 2;   /*  B15...8   Min Voltage in 100mV units */
+                power_info->max_i = ((obj >>  0) & 0x7F) * 5;   /*  B6 ...0   Max Current in 50mA units */
+                power_info->max_p = 0;
+                break;
         }
         return true;
     }
     return false;
 }
 
-bool PD_protocol_get_msg_info(uint16_t header, PD_msg_info_t * msg_info)
+bool PD_UFP_Protocol_c::get_msg_info(uint16_t header, PD_msg_info_t * msg_info)
 {
     PD_msg_header_info_t h;
-    parse_header(&h, header);
-    if (msg_info) {
+    this->parse_header(&h, header);
+    if (msg_info)
+    {
         const char * name;
         const struct PD_msg_state_t * state;
         uint8_t type = h.type;
@@ -538,62 +547,66 @@ bool PD_protocol_get_msg_info(uint16_t header, PD_msg_info_t * msg_info)
     return false;
 }
 
-bool PD_protocol_get_PPS_status(PD_protocol_t *p, PPS_status_t * PPS_status)
+bool PD_UFP_Protocol_c::get_PPS_status(PPS_status_t * PPS_status)
 {
-    if (p && PPS_status) {
+    if (PPS_status)
+    {
         /* Reference: 6.5.10 PPS_Status Message */
-        PPS_status->output_voltage = ((uint16_t)p->PPSSDB[1] << 8) | p->PPSSDB[0];
-        PPS_status->output_current = p->PPSSDB[2];
-        PPS_status->flag_PTF = (PPS_PTF_t)((p->PPSSDB[3] >> 1) & 0x3);   /* Bit 1 ... 2 */
-        PPS_status->flag_OMF = (PPS_OMF_t)((p->PPSSDB[3] >> 3) & 0x1);   /* Bit 3 */
+        PPS_status->output_voltage = ((uint16_t)this->PPSSDB[1] << 8) | this->PPSSDB[0];
+        PPS_status->output_current = this->PPSSDB[2];
+        PPS_status->flag_PTF = (PPS_PTF_t)((this->PPSSDB[3] >> 1) & 0x3);   /* Bit 1 ... 2 */
+        PPS_status->flag_OMF = (PPS_OMF_t)((this->PPSSDB[3] >> 3) & 0x1);   /* Bit 3 */
         return true;
     }
     return false;
 }
 
-bool PD_protocol_set_power_option(PD_protocol_t * p, enum PD_power_option_t option)
+bool PD_UFP_Protocol_c::set_power_option(enum PD_power_option_t option)
 {
-    p->power_option = option;
-    p->PPS_voltage = 0;
-    p->PPS_current = 0;
-    if (p->power_data_obj_count > 0) {
-        p->power_data_obj_selected = evaluate_src_cap(p, p->PPS_voltage, p->PPS_current);
+    this->power_option = option;
+    this->PPS_voltage = 0;
+    this->PPS_current = 0;
+    if (this->power_data_obj_count > 0) {
+        this->power_data_obj_selected = this->evaluate_src_cap(this->PPS_voltage, this->PPS_current);
         return true;    /* need to re-send request */
     }
     return false;
 }
 
-bool PD_protocol_select_power(PD_protocol_t * p, uint8_t index)
+bool PD_UFP_Protocol_c::select_power(uint8_t index)
 {
-    if (index < p->power_data_obj_count) {
-        p->power_data_obj_selected = index;
+    if (index < this->power_data_obj_count)
+    {
+        this->power_data_obj_selected = index;
         return true;    /* need to re-send request */
     }
     return false;
 }
 
-bool PD_protocol_set_PPS(PD_protocol_t * p, uint16_t PPS_voltage, uint8_t PPS_current, bool strict)
+bool PD_UFP_Protocol_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool strict)
 {
-    if (p->PPS_voltage != PPS_voltage || p->PPS_current != PPS_current) {
-        uint8_t selected = evaluate_src_cap(p, PPS_voltage, PPS_current);
-        if (selected || !strict) {
-            p->PPS_voltage = PPS_voltage;
-            p->PPS_current = PPS_current;
-            p->power_data_obj_selected = selected;
+    if (this->PPS_voltage != PPS_voltage || this->PPS_current != PPS_current)
+    {
+        uint8_t selected = this->evaluate_src_cap(PPS_voltage, PPS_current);
+        if (selected || !strict)
+        {
+            this->PPS_voltage = PPS_voltage;
+            this->PPS_current = PPS_current;
+            this->power_data_obj_selected = selected;
             return true;    /* need to re-send request */            
         }
     }
     return false;
 }
 
-void PD_protocol_reset(PD_protocol_t * p)
+void PD_UFP_Protocol_c::reset()
 {
-    p->msg_state = &ctrl_msg_list[0];
-    p->message_id = 0;
+    this->msg_state = &ctrl_msg_list[0];
+    this->message_id = 0;
 }
 
-void PD_protocol_init(PD_protocol_t * p)
+void PD_UFP_Protocol_c::init()
 {
-    memset(p, 0, sizeof(PD_protocol_t));
-    p->msg_state = &ctrl_msg_list[0];
+    memset(this, 0, sizeof(PD_UFP_Protocol_c));
+    this->msg_state = &ctrl_msg_list[0];
 }

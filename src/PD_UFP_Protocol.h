@@ -25,14 +25,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* For use in PD_protocol_get_power_info() */
-#define PD_V(v)     ((uint16_t)(v * 20 + 0.01))
-#define PD_A(a)     ((uint16_t)(a * 100 + 0.01))
-
-/* For use in PD_protocol_set_PPS_option() */
-#define PPS_V(v)    ((uint16_t)(v * 50 + 0.01))
-#define PPS_A(a)    ((uint8_t)(a * 20 + 0.01))
-
 #define PD_PROTOCOL_MAX_NUM_OF_PDO      7
 
 #define PD_PROTOCOL_EVENT_SRC_CAP       (1 << 0)
@@ -41,7 +33,7 @@
 #define PD_PROTOCOL_EVENT_REJECT        (1 << 3)
 #define PD_PROTOCOL_EVENT_PPS_STATUS    (1 << 4)
 
-typedef uint8_t PD_protocol_event_t;
+typedef uint8_t event_t;
 
 enum PD_power_option_t {
     PD_POWER_OPTION_MAX_5V      = 0,
@@ -97,54 +89,85 @@ typedef struct {
 } PD_power_info_t;
 
 struct PD_msg_state_t;
-typedef struct {
-    const struct PD_msg_state_t *msg_state;
-    uint16_t tx_msg_header;
-    uint16_t rx_msg_header;
-    uint8_t message_id;
 
-    uint16_t PPS_voltage;
-    uint8_t PPS_current;
-    uint8_t PPSSDB[4];  /* PPS Status Data Block */
 
-    enum PD_power_option_t power_option;
-    uint32_t power_data_obj[PD_PROTOCOL_MAX_NUM_OF_PDO];
-    uint8_t power_data_obj_count;
-    uint8_t power_data_obj_selected;
-} PD_protocol_t;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// PD_UFP_Protocol_c
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class PD_UFP_Protocol_c
+{
+    public:
+        // Constructor
+        PD_UFP_Protocol_c() { init(); }
+        
+        /* Message handler */
+        void handle_msg(uint16_t header, uint32_t *obj, event_t *events);
+        bool respond(uint16_t *h, uint32_t *obj);
 
-/* Message handler */
-void PD_protocol_handle_msg(PD_protocol_t *p, uint16_t header, uint32_t *obj, PD_protocol_event_t *events);
-bool PD_protocol_respond(PD_protocol_t *p, uint16_t *h, uint32_t *obj);
+        /* PD Message creation */
+        void create_get_src_cap(uint16_t *header);
+        void create_get_PPS_status(uint16_t *header);
+        void create_request(uint16_t *header, uint32_t *obj);
 
-/* PD Message creation */
-void PD_protocol_create_get_src_cap(PD_protocol_t *p, uint16_t *header);
-void PD_protocol_create_get_PPS_status(PD_protocol_t *p, uint16_t *header);
-void PD_protocol_create_request(PD_protocol_t *p, uint16_t *header, uint32_t *obj);
+        /* Get functions */
+        uint8_t  get_selected_power() { return this->power_data_obj_selected; }
+        uint16_t get_PPS_voltage() { return this->PPS_voltage; } /* Voltage in 20mV units */
+        uint8_t  get_PPS_current() { return this->PPS_current; } /* Current in 50mA units */
 
-/* Get functions */
-static inline uint8_t  PD_protocol_get_selected_power(PD_protocol_t *p) { return p->power_data_obj_selected; }
-static inline uint16_t PD_protocol_get_PPS_voltage(PD_protocol_t *p) { return p->PPS_voltage; } /* Voltage in 20mV units */
-static inline uint8_t  PD_protocol_get_PPS_current(PD_protocol_t *p) { return p->PPS_current; } /* Current in 50mA units */
+        uint16_t get_tx_msg_header() { return this->tx_msg_header; }
+        uint16_t get_rx_msg_header() { return this->rx_msg_header; }
 
-static inline uint16_t PD_protocol_get_tx_msg_header(PD_protocol_t *p) { return p->tx_msg_header; }
-static inline uint16_t PD_protocol_get_rx_msg_header(PD_protocol_t *p) { return p->rx_msg_header; }
+        bool get_msg_info(uint16_t header, PD_msg_info_t * msg_info);
 
-bool PD_protocol_get_msg_info(uint16_t header, PD_msg_info_t * msg_info);
+        bool get_power_info(uint8_t index, PD_power_info_t *power_info);
+        bool get_PPS_status(PPS_status_t * PPS_status);
 
-bool PD_protocol_get_power_info(PD_protocol_t *p, uint8_t index, PD_power_info_t *power_info);
-bool PD_protocol_get_PPS_status(PD_protocol_t *p, PPS_status_t * PPS_status);
+        /* Set Fixed and Variable power option */
+        bool set_power_option(enum PD_power_option_t option);
+        bool select_power(uint8_t index);
 
-/* Set Fixed and Variable power option */
-bool PD_protocol_set_power_option(PD_protocol_t *p, enum PD_power_option_t option);
-bool PD_protocol_select_power(PD_protocol_t *p, uint8_t index);
+        /* Set PPS Voltage in 20mV units, Current in 50mA units. return true if re-send request is needed
+           strict=true, If PPS setting is not qualified, return false, nothing is changed.
+           strict=false, if PPS setting is not qualified, fall back to regular power option */
+        bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool strict);  
 
-/* Set PPS Voltage in 20mV units, Current in 50mA units. return true if re-send request is needed
-   strict=true, If PPS setting is not qualified, return false, nothing is changed.
-   strict=false, if PPS setting is not qualified, fall back to regular power option */
-bool PD_protocol_set_PPS(PD_protocol_t * p, uint16_t PPS_voltage, uint8_t PPS_current, bool strict);  
+        void reset();
+        void init();
+        
+    protected:
+        const struct PD_msg_state_t *msg_state;
+        uint16_t tx_msg_header;
+        uint16_t rx_msg_header;
+        uint8_t message_id;
 
-void PD_protocol_reset(PD_protocol_t *p);
-void PD_protocol_init(PD_protocol_t *p);
+        uint16_t PPS_voltage;
+        uint8_t PPS_current;
+        uint8_t PPSSDB[4];  /* PPS Status Data Block */
+
+        enum PD_power_option_t power_option;
+        uint32_t power_data_obj[PD_PROTOCOL_MAX_NUM_OF_PDO];
+        uint8_t power_data_obj_count;
+        uint8_t power_data_obj_selected;
+        
+        void handler_good_crc   (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_goto_min   (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_accept     (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_reject     (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_ps_rdy     (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_source_cap (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_BIST       (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_alert      (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_vender_def (uint16_t header, uint32_t * obj, event_t * events);
+        void handler_PPS_Status (uint16_t header, uint32_t * obj, event_t * events);
+
+        bool responder_get_sink_cap  (uint16_t * header, uint32_t * obj);
+        bool responder_reject        (uint16_t * header, uint32_t * obj);
+        bool responder_soft_reset    (uint16_t * header, uint32_t * obj);
+        bool responder_source_cap    (uint16_t * header, uint32_t * obj);
+        bool responder_vender_def    (uint16_t * header, uint32_t * obj);
+        bool responder_sink_cap_ext  (uint16_t * header, uint32_t * obj);
+        bool responder_not_support   (uint16_t * header, uint32_t * obj);
+}
+
 
 #endif
