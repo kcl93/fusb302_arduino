@@ -13,6 +13,7 @@
  * 
  */
  
+#include <Arduino.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -59,7 +60,7 @@ PD_UFP_c::PD_UFP_c():
     wait_ps_rdy(0),
     send_request(0)
 {
-    memset(&FUSB302, 0, sizeof(FUSB302_dev_t));
+
 }
 
 void PD_UFP_c::init(uint8_t int_pin, enum PD_power_option_t power_option)
@@ -72,11 +73,8 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
     this->int_pin = int_pin;
     // Initialize FUSB302
     pinMode(int_pin, INPUT_PULLUP); // Set FUSB302 int pin input ant pull up
-    FUSB302.i2c_address = 0x22;
-    FUSB302.i2c_read = FUSB302_i2c_read;
-    FUSB302.i2c_write = FUSB302_i2c_write;
-    FUSB302.delay_ms = FUSB302_delay_ms;
-    if (FUSB302_init(&FUSB302) == FUSB302_SUCCESS && FUSB302_get_ID(&FUSB302, 0, 0) == FUSB302_SUCCESS) {
+    if (this->FUSB302.init() == FUSB302_SUCCESS && this->FUSB302.get_ID(0, 0) == FUSB302_SUCCESS)
+    {
         status_initialized = 1;
     }
 
@@ -101,8 +99,9 @@ void PD_UFP_c::run(void)
     if (timer() || digitalRead(int_pin) == 0)
     {
         FUSB302_event_t FUSB302_events = 0;
-        for (uint8_t i = 0; i < 3 && FUSB302_alert(&FUSB302, &FUSB302_events) != FUSB302_SUCCESS; i++) {}
-        if (FUSB302_events) {
+        for (uint8_t i = 0; i < 3 && this->FUSB302.alert(&FUSB302_events) != FUSB302_SUCCESS; i++) {}
+        if (FUSB302_events)
+        {
             handle_FUSB302_event(FUSB302_events);
         }
     }
@@ -126,47 +125,6 @@ void PD_UFP_c::set_power_option(enum PD_power_option_t power_option)
     }
 }
 
-void PD_UFP_c::clock_prescale_set(uint8_t prescaler)
-{
-    if (prescaler > 0)
-    {
-        clock_prescaler = prescaler;
-    }
-}
-
-FUSB302_ret_t PD_UFP_c::FUSB302_i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
-{
-    Wire.beginTransmission(dev_addr);
-    Wire.write(reg_addr);
-    Wire.endTransmission();
-    Wire.requestFrom(dev_addr, count);
-    while (Wire.available() && count > 0)
-    {
-        *data++ = Wire.read();
-        count--;
-    }
-    return count == 0 ? FUSB302_SUCCESS : FUSB302_ERR_READ_DEVICE;
-}
-
-FUSB302_ret_t PD_UFP_c::FUSB302_i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
-{
-    Wire.beginTransmission(dev_addr);
-    Wire.write(reg_addr);
-    while (count > 0)
-    {
-        Wire.write(*data++);
-        count--;
-    }
-    Wire.endTransmission();
-    return FUSB302_SUCCESS;
-}
-
-FUSB302_ret_t PD_UFP_c::FUSB302_delay_ms(uint32_t t)
-{
-    delay(t / clock_prescaler);
-    return FUSB302_SUCCESS;
-}
-
 void PD_UFP_c::handle_protocol_event(event_t events)
 {    
     if (events & PD_PROTOCOL_EVENT_SRC_CAP)
@@ -174,7 +132,7 @@ void PD_UFP_c::handle_protocol_event(event_t events)
         wait_src_cap = 0;
         get_src_cap_retry_count = 0;
         wait_ps_rdy = 1;
-        time_wait_ps_rdy = clock_ms();
+        time_wait_ps_rdy = millis();
         status_log_event(STATUS_LOG_SRC_CAP);
     }
     if (events & PD_PROTOCOL_EVENT_REJECT)
@@ -182,7 +140,7 @@ void PD_UFP_c::handle_protocol_event(event_t events)
         if (wait_ps_rdy)
         {
             wait_ps_rdy = 0;
-            status_log_event(STATUS_LOG_POWER_REJECT);
+            this->status_log_event(STATUS_LOG_POWER_REJECT);
         }
     }    
     if (events & PD_PROTOCOL_EVENT_PS_RDY)
@@ -191,23 +149,29 @@ void PD_UFP_c::handle_protocol_event(event_t events)
         uint8_t selected_power = this->protocol.get_selected_power();
         this->protocol.get_power_info(selected_power, &p);
         wait_ps_rdy = 0;
-        if (p.type == PD_PDO_TYPE_AUGMENTED_PDO) {
+        if (p.type == PD_PDO_TYPE_AUGMENTED_PDO)
+        {
             // PPS mode
-            FUSB302_set_vbus_sense(&FUSB302, 0);
-            if (PPS_voltage_next) {
+            this->FUSB302.set_vbus_sense(0);
+            if (PPS_voltage_next)
+            {
                 // Two stage startup for PPS voltage < 5V
                 this->protocol.set_PPS(PPS_voltage_next, PPS_current_next, false);
                 PPS_voltage_next = 0;
                 send_request = 1;
-                status_log_event(STATUS_LOG_POWER_PPS_STARTUP);
-            } else {
-                time_PPS_request = clock_ms();
+                this->status_log_event(STATUS_LOG_POWER_PPS_STARTUP);
+            }
+            else
+            {
+                time_PPS_request = millis();
                 status_power_ready(STATUS_POWER_PPS, 
                     this->protocol.get_PPS_voltage(), this->protocol.get_PPS_current());
                 status_log_event(STATUS_LOG_POWER_READY);
             }
-        } else {
-            FUSB302_set_vbus_sense(&FUSB302, 1);
+        }
+        else
+        {
+            this->FUSB302.set_vbus_sense(1);
             status_power_ready(STATUS_POWER_TYP, p.max_v, p.max_i);
             status_log_event(STATUS_LOG_POWER_READY);
         }
@@ -216,74 +180,92 @@ void PD_UFP_c::handle_protocol_event(event_t events)
 
 void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
 {
-    if (events & FUSB302_EVENT_DETACHED) {
+    if (events & FUSB302_EVENT_DETACHED)
+    {
         this->protocol.reset();
         return;
     }
-    if (events & FUSB302_EVENT_ATTACHED) {
+    if (events & FUSB302_EVENT_ATTACHED)
+    {
         uint8_t cc1 = 0, cc2 = 0, cc = 0;
-        FUSB302_get_cc(&FUSB302, &cc1, &cc2);
+        this->FUSB302.get_cc(&cc1, &cc2);
         this->protocol.reset();
-        if (cc1 && cc2 == 0) {
+        if (cc1 && cc2 == 0)
+        {
             cc = cc1;
-        } else if (cc2 && cc1 == 0) {
+        }
+        else if (cc2 && cc1 == 0)
+        {
             cc = cc2;
         }
         /* TODO: handle no cc detected error */
-        if (cc > 1) {
+        if (cc > 1)
+        {
             wait_src_cap = 1;
-        } else {
-            set_default_power();
         }
-        status_log_event(STATUS_LOG_CC);
+        else
+        {
+            this->set_default_power();
+        }
+        this->status_log_event(STATUS_LOG_CC);
     }
-    if (events & FUSB302_EVENT_RX_SOP) {
+    if (events & FUSB302_EVENT_RX_SOP)
+    {
         event_t protocol_event = 0;
         uint16_t header;
         uint32_t obj[7];
-        FUSB302_get_message(&FUSB302, &header, obj);
+        this->FUSB302.get_message(&header, obj);
         this->protocol.handle_msg(header, obj, &protocol_event);
-        status_log_event(STATUS_LOG_MSG_RX, obj);
-        if (protocol_event) {
+        this->status_log_event(STATUS_LOG_MSG_RX, obj);
+        if (protocol_event)
+        {
             handle_protocol_event(protocol_event);
         }
     }
-    if (events & FUSB302_EVENT_GOOD_CRC_SENT) {
+    if (events & FUSB302_EVENT_GOOD_CRC_SENT)
+    {
         uint16_t header;
         uint32_t obj[7];
-        delay_ms(2);  /* Delay respond in case there are retry messages */
+        delay(2);  /* Delay respond in case there are retry messages */
         if (this->protocol.respond(&header, obj)) {
-            status_log_event(STATUS_LOG_MSG_TX, obj);
-            FUSB302_tx_sop(&FUSB302, header, obj);
+            this->status_log_event(STATUS_LOG_MSG_TX, obj);
+            this->FUSB302.tx_sop(header, obj);
         }
     }
 }
 
 bool PD_UFP_c::timer(void)
 {
-    uint16_t t = clock_ms();
-    if (wait_src_cap && t - time_wait_src_cap > t_TypeCSinkWaitCap) {
+    uint16_t t = millis();
+    if (wait_src_cap && t - time_wait_src_cap > t_TypeCSinkWaitCap)
+    {
         time_wait_src_cap = t;
         if (get_src_cap_retry_count < 3) {
             uint16_t header;
             get_src_cap_retry_count += 1;
             /* Try to request soruce capabilities message (will not cause power cycle VBUS) */
             this->protocol.create_get_src_cap(&header);
-            status_log_event(STATUS_LOG_MSG_TX);
-            FUSB302_tx_sop(&FUSB302, header, 0);
-        } else {
+            this->status_log_event(STATUS_LOG_MSG_TX);
+            this->FUSB302.tx_sop(header, 0);
+        }
+        else
+        {
             get_src_cap_retry_count = 0;
             /* Hard reset will cause the source power cycle VBUS. */
-            FUSB302_tx_hard_reset(&FUSB302);
+            this->FUSB302.tx_hard_reset();
             this->protocol.reset();
         }
     }
-    if (wait_ps_rdy) {
-        if (t - time_wait_ps_rdy > t_RequestToPSReady) {
+    if (wait_ps_rdy)
+    {
+        if (t - time_wait_ps_rdy > t_RequestToPSReady)
+        {
             wait_ps_rdy = 0;
-            set_default_power();
+            this->set_default_power();
         }
-    } else if (send_request || (status_power == STATUS_POWER_PPS && t - time_PPS_request > t_PPSRequest)) {
+    }
+    else if (send_request || (status_power == STATUS_POWER_PPS && t - time_PPS_request > t_PPSRequest))
+    {
         wait_ps_rdy = 1;
         send_request = 0;
         time_PPS_request = t;
@@ -292,10 +274,11 @@ bool PD_UFP_c::timer(void)
         /* Send request if option updated or regularly in PPS mode to keep power alive */
         this->protocol.create_request(&header, obj);
         status_log_event(STATUS_LOG_MSG_TX, obj);
-        time_wait_ps_rdy = clock_ms();
-        FUSB302_tx_sop(&FUSB302, header, obj);
+        time_wait_ps_rdy = millis();
+        this->FUSB302.tx_sop(header, obj);
     }
-    if (t - time_polling > t_PD_POLLING) {
+    if (t - time_polling > t_PD_POLLING)
+    {
         time_polling = t;
         return true;
     }
@@ -313,16 +296,4 @@ void PD_UFP_c::status_power_ready(status_power_t status, uint16_t voltage, uint1
     ready_voltage = voltage;
     ready_current = current;
     status_power = status;
-}
-
-uint8_t PD_UFP_c::clock_prescaler = 1;
-
-void PD_UFP_c::delay_ms(uint16_t ms)
-{
-    delay(ms / clock_prescaler);
-}
-
-uint16_t PD_UFP_c::clock_ms(void)
-{
-    return (uint16_t)millis() * clock_prescaler;
 }

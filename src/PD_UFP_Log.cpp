@@ -12,7 +12,8 @@
  * Support PD3.0 PPS
  * 
  */
- 
+
+#include <Arduino.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -83,7 +84,7 @@ void PD_UFP_Log_c::status_log_event(uint8_t status, uint32_t * obj)
         break;
     }
     log->status = status;
-    log->time = clock_ms();
+    log->time = millis();
     status_log_write++;
 }
 
@@ -167,60 +168,80 @@ int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
         return 0; 
     }
 
-    switch (log->status) {
-    case STATUS_LOG_MSG_TX:
-    case STATUS_LOG_MSG_RX:
-        n = status_log_readline_msg(buffer, maxlen, log);
-        break;
-    case STATUS_LOG_DEV:
-        if (status_initialized) {
-            uint8_t version_ID = 0, revision_ID = 0;
-            FUSB302_get_ID(&FUSB302, &version_ID, &revision_ID);
-            LOG("\n%sFUSB302 ver ID:%c_rev%c\n", t, 'A' + version_ID, 'A' + revision_ID);
-        } else {
-            LOG("\n%sFUSB302 init error\n", t);
-        }
-        break;
-    case STATUS_LOG_CC: {
-        const char *detection_type_str[] = {"USB", "1.5", "3.0"};
-        uint8_t cc1 = 0, cc2 = 0;
-        FUSB302_get_cc(&FUSB302, &cc1, &cc2);
-        if (cc1 == 0 && cc2 == 0) {
-            LOG("%sUSB attached vRA\n", t);
-        } else if (cc1 && cc2 == 0) {
-            LOG("%sUSB attached CC1 vRd-%s\n", t, detection_type_str[cc1 - 1]);
-        } else if (cc2 && cc1 == 0) {
-            LOG("%sUSB attached CC2 vRd-%s\n", t, detection_type_str[cc2 - 1]);
-        } else {
-            LOG("%sUSB attached unknown\n", t);
-        }
-        break; }
-    case STATUS_LOG_SRC_CAP:
-        n = status_log_readline_src_cap(buffer, maxlen);
-        break;
-    case STATUS_LOG_POWER_READY: {
-        uint16_t v = ready_voltage;
-        uint16_t a = ready_current;
-        if (status_power == STATUS_POWER_TYP) {
-            LOG("%s%d.%02dV %d.%02dA supply ready\n", t, v / 20, (v * 5) % 100, a / 100, a % 100);
-        } else if (status_power == STATUS_POWER_PPS) {
-            LOG("%sPPS %d.%02dV %d.%02dA supply ready\n", t, v / 50, (v * 2) % 100, a / 20, (a * 5) % 100);
-        }
-        break; }
-    case STATUS_LOG_POWER_PPS_STARTUP:
-        LOG("%sPPS 2-stage startup\n", t);
-        break;
-    case STATUS_LOG_POWER_REJECT:
-        LOG("%sRequest Rejected\n", t);
-        break;
-    case STATUS_LOG_LOAD_SW_ON:
-        LOG("%sLoad SW ON\n", t);
-        break;
-    case STATUS_LOG_LOAD_SW_OFF:
-        LOG("%sLoad SW OFF\n", t);
-        break;
+    switch (log->status)
+    {
+        case STATUS_LOG_MSG_TX:
+        case STATUS_LOG_MSG_RX:
+            n = status_log_readline_msg(buffer, maxlen, log);
+            break;
+
+        case STATUS_LOG_DEV:
+            if (status_initialized)
+            {
+                uint8_t version_ID = 0, revision_ID = 0;
+                this->FUSB302.get_ID(&version_ID, &revision_ID);
+                LOG("\n%sFUSB302 ver ID:%c_rev%c\n", t, 'A' + version_ID, 'A' + revision_ID);
+            }
+            else
+            {
+                LOG("\n%sFUSB302 init error\n", t);
+            }
+            break;
+
+        case STATUS_LOG_CC: {
+            const char *detection_type_str[] = {"USB", "1.5", "3.0"};
+            uint8_t cc1 = 0, cc2 = 0;
+            this->FUSB302.get_cc(&cc1, &cc2);
+            if (cc1 == 0 && cc2 == 0)
+            {
+                LOG("%sUSB attached vRA\n", t);
+            }
+            else if (cc1 && cc2 == 0)
+            {
+                LOG("%sUSB attached CC1 vRd-%s\n", t, detection_type_str[cc1 - 1]);
+            }
+            else if (cc2 && cc1 == 0)
+            {
+                LOG("%sUSB attached CC2 vRd-%s\n", t, detection_type_str[cc2 - 1]);
+            }
+            else
+            {
+                LOG("%sUSB attached unknown\n", t);
+            }
+            break; }
+
+        case STATUS_LOG_SRC_CAP:
+            n = status_log_readline_src_cap(buffer, maxlen);
+            break;
+
+        case STATUS_LOG_POWER_READY: {
+            uint16_t v = ready_voltage;
+            uint16_t a = ready_current;
+            if (status_power == STATUS_POWER_TYP) {
+                LOG("%s%d.%02dV %d.%02dA supply ready\n", t, v / 20, (v * 5) % 100, a / 100, a % 100);
+            } else if (status_power == STATUS_POWER_PPS) {
+                LOG("%sPPS %d.%02dV %d.%02dA supply ready\n", t, v / 50, (v * 2) % 100, a / 20, (a * 5) % 100);
+            }
+            break; }
+
+        case STATUS_LOG_POWER_PPS_STARTUP:
+            LOG("%sPPS 2-stage startup\n", t);
+            break;
+
+        case STATUS_LOG_POWER_REJECT:
+            LOG("%sRequest Rejected\n", t);
+            break;
+
+        case STATUS_LOG_LOAD_SW_ON:
+            LOG("%sLoad SW ON\n", t);
+            break;
+
+        case STATUS_LOG_LOAD_SW_OFF:
+            LOG("%sLoad SW OFF\n", t);
+            break;
     }
-    if (status_log_counter == 0) {
+    if (status_log_counter == 0)
+    {
         t[0] = 0;
         status_log_read++;
         status_log_counter = 0;

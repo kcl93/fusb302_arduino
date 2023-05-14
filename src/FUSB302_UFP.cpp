@@ -15,6 +15,8 @@
  * 
  */
  
+#include <Arduino.h>
+#include <Wire.h>
 #include <string.h>
 #include "FUSB302_UFP.h"
 
@@ -196,27 +198,27 @@
 #define ADDRESS_INTERRUPT   0x42
 #define ADDRESS_FIFOS       0x43
 
-#define REG_DEVICE_ID       dev->reg_control[ADDRESS_DEVICE_ID  - ADDRESS_DEVICE_ID]
-#define REG_SWITCHES0       dev->reg_control[ADDRESS_SWITCHES0  - ADDRESS_DEVICE_ID]
-#define REG_SWITCHES1       dev->reg_control[ADDRESS_SWITCHES1  - ADDRESS_DEVICE_ID]
-#define REG_MEASURE         dev->reg_control[ADDRESS_MEASURE    - ADDRESS_DEVICE_ID]
-#define REG_SLICE           dev->reg_control[ADDRESS_SLICE      - ADDRESS_DEVICE_ID]
-#define REG_CONTROL0        dev->reg_control[ADDRESS_CONTROL0   - ADDRESS_DEVICE_ID]
-#define REG_CONTROL1        dev->reg_control[ADDRESS_CONTROL1   - ADDRESS_DEVICE_ID]
-#define REG_CONTROL2        dev->reg_control[ADDRESS_CONTROL2   - ADDRESS_DEVICE_ID]
-#define REG_CONTROL3        dev->reg_control[ADDRESS_CONTROL3   - ADDRESS_DEVICE_ID]
-#define REG_MASK            dev->reg_control[ADDRESS_MASK       - ADDRESS_DEVICE_ID]
-#define REG_POWER           dev->reg_control[ADDRESS_POWER      - ADDRESS_DEVICE_ID]
-#define REG_RESET           dev->reg_control[ADDRESS_RESET      - ADDRESS_DEVICE_ID]
-#define REG_MASKA           dev->reg_control[ADDRESS_MASKA      - ADDRESS_DEVICE_ID]
-#define REG_MASKB           dev->reg_control[ADDRESS_MASKB      - ADDRESS_DEVICE_ID]
-#define REG_STATUS0A        dev->reg_status[ADDRESS_STATUS0A    - ADDRESS_STATUS0A]
-#define REG_STATUS1A        dev->reg_status[ADDRESS_STATUS1A    - ADDRESS_STATUS0A]
-#define REG_INTERRUPTA      dev->reg_status[ADDRESS_INTERRUPTA  - ADDRESS_STATUS0A]
-#define REG_INTERRUPTB      dev->reg_status[ADDRESS_INTERRUPTB  - ADDRESS_STATUS0A]
-#define REG_STATUS0         dev->reg_status[ADDRESS_STATUS0     - ADDRESS_STATUS0A]
-#define REG_STATUS1         dev->reg_status[ADDRESS_STATUS1     - ADDRESS_STATUS0A]
-#define REG_INTERRUPT       dev->reg_status[ADDRESS_INTERRUPT   - ADDRESS_STATUS0A]
+#define REG_DEVICE_ID       this->reg_control[ADDRESS_DEVICE_ID  - ADDRESS_DEVICE_ID]
+#define REG_SWITCHES0       this->reg_control[ADDRESS_SWITCHES0  - ADDRESS_DEVICE_ID]
+#define REG_SWITCHES1       this->reg_control[ADDRESS_SWITCHES1  - ADDRESS_DEVICE_ID]
+#define REG_MEASURE         this->reg_control[ADDRESS_MEASURE    - ADDRESS_DEVICE_ID]
+#define REG_SLICE           this->reg_control[ADDRESS_SLICE      - ADDRESS_DEVICE_ID]
+#define REG_CONTROL0        this->reg_control[ADDRESS_CONTROL0   - ADDRESS_DEVICE_ID]
+#define REG_CONTROL1        this->reg_control[ADDRESS_CONTROL1   - ADDRESS_DEVICE_ID]
+#define REG_CONTROL2        this->reg_control[ADDRESS_CONTROL2   - ADDRESS_DEVICE_ID]
+#define REG_CONTROL3        this->reg_control[ADDRESS_CONTROL3   - ADDRESS_DEVICE_ID]
+#define REG_MASK            this->reg_control[ADDRESS_MASK       - ADDRESS_DEVICE_ID]
+#define REG_POWER           this->reg_control[ADDRESS_POWER      - ADDRESS_DEVICE_ID]
+#define REG_RESET           this->reg_control[ADDRESS_RESET      - ADDRESS_DEVICE_ID]
+#define REG_MASKA           this->reg_control[ADDRESS_MASKA      - ADDRESS_DEVICE_ID]
+#define REG_MASKB           this->reg_control[ADDRESS_MASKB      - ADDRESS_DEVICE_ID]
+#define REG_STATUS0A        this->reg_status[ADDRESS_STATUS0A    - ADDRESS_STATUS0A]
+#define REG_STATUS1A        this->reg_status[ADDRESS_STATUS1A    - ADDRESS_STATUS0A]
+#define REG_INTERRUPTA      this->reg_status[ADDRESS_INTERRUPTA  - ADDRESS_STATUS0A]
+#define REG_INTERRUPTB      this->reg_status[ADDRESS_INTERRUPTB  - ADDRESS_STATUS0A]
+#define REG_STATUS0         this->reg_status[ADDRESS_STATUS0     - ADDRESS_STATUS0A]
+#define REG_STATUS1         this->reg_status[ADDRESS_STATUS1     - ADDRESS_STATUS0A]
+#define REG_INTERRUPT       this->reg_status[ADDRESS_INTERRUPT   - ADDRESS_STATUS0A]
 
 enum FUSB302_transmit_data_tokens_t {
     TX_TOKEN_TXON    = 0xA1,
@@ -239,32 +241,40 @@ enum FUSB302_state_t {
 #define FUSB302_ERR_MSG(s)  s
 
 #define REG_READ(addr, data, count) do { \
-    if (reg_read(dev, addr, data, count) != FUSB302_SUCCESS) { return FUSB302_ERR_READ_DEVICE; } \
+    if (reg_read(addr, data, count) != FUSB302_SUCCESS) { return FUSB302_ERR_READ_DEVICE; } \
 } while(0)
 
 #define REG_WRITE(addr, data, count) do { \
-    if (reg_write(dev, addr, data, count) != FUSB302_SUCCESS) { return FUSB302_ERR_WRITE_DEVICE; } \
+    if (reg_write(addr, data, count) != FUSB302_SUCCESS) { return FUSB302_ERR_WRITE_DEVICE; } \
 } while(0)
 
-static inline FUSB302_ret_t reg_read(FUSB302_dev_t *dev, uint8_t address, uint8_t *data, uint8_t count)
+FUSB302_dev_c::FUSB302_dev_c():
+    i2c_address(0x22)
 {
-    FUSB302_ret_t ret = dev->i2c_read(dev->i2c_address, address, data, count);
-    if (ret != FUSB302_SUCCESS) {
-        dev->err_msg = FUSB302_ERR_MSG("Fail to read register");
+
+}
+
+FUSB302_ret_t FUSB302_dev_c::reg_read(uint8_t address, uint8_t *data, uint8_t count)
+{
+    FUSB302_ret_t ret = this->i2c_read(this->i2c_address, address, data, count);
+    if (ret != FUSB302_SUCCESS)
+    {
+        this->err_msg = FUSB302_ERR_MSG("Fail to read register");
     }
     return ret;
 }
 
-static inline FUSB302_ret_t reg_write(FUSB302_dev_t *dev, uint8_t address, uint8_t *data, uint8_t count)
+FUSB302_ret_t FUSB302_dev_c::reg_write(uint8_t address, uint8_t *data, uint8_t count)
 {
-    FUSB302_ret_t ret = dev->i2c_write(dev->i2c_address, address, data, count);
-    if (ret != FUSB302_SUCCESS) {
-        dev->err_msg = FUSB302_ERR_MSG("Fail to write register");
+    FUSB302_ret_t ret = this->i2c_write(this->i2c_address, address, data, count);
+    if (ret != FUSB302_SUCCESS)
+    {
+        this->err_msg = FUSB302_ERR_MSG("Fail to write register");
     }
     return ret;
 }
 
-static FUSB302_ret_t FUSB302_read_cc_lvl(FUSB302_dev_t *dev, uint8_t * cc_value)
+FUSB302_ret_t FUSB302_dev_c::read_cc_lvl(uint8_t * cc_value)
 {
     /*  00: < 200 mV          : vRa
         01: >200 mV, <660 mV  : vRd-USB
@@ -284,58 +294,60 @@ static FUSB302_ret_t FUSB302_read_cc_lvl(FUSB302_dev_t *dev, uint8_t * cc_value)
 	return FUSB302_SUCCESS;
 }
 
-static FUSB302_ret_t FUSB302_read_incoming_packet(FUSB302_dev_t *dev, FUSB302_event_t * events)
+FUSB302_ret_t FUSB302_dev_c::read_incoming_packet(FUSB302_event_t * events)
 {
     uint8_t len, b[3];
     REG_READ(ADDRESS_FIFOS, b, 3);
-    dev->rx_header = ((uint16_t)b[2] << 8) | b[1];
-    len = (dev->rx_header >> 12) & 0x7;
-    REG_READ(ADDRESS_FIFOS, dev->rx_buffer, len * 4 + 4);  /* add 4 to len to read CRC out */
+    this->rx_header = ((uint16_t)b[2] << 8) | b[1];
+    len = (this->rx_header >> 12) & 0x7;
+    REG_READ(ADDRESS_FIFOS, this->rx_buffer, len * 4 + 4);  /* add 4 to len to read CRC out */
 
-    if (events) {
+    if (events)
+    {
         *events |= FUSB302_EVENT_RX_SOP;
     }
     return FUSB302_SUCCESS;
 }
 
-static FUSB302_ret_t FUSB302_state_unattached(FUSB302_dev_t *dev, FUSB302_event_t * events)
+FUSB302_ret_t FUSB302_dev_c::state_unattached(FUSB302_event_t * events)
 {
     REG_READ(ADDRESS_STATUS0, &REG_STATUS0, 1);
-    if (REG_STATUS0 & VBUSOK) {
+    if (REG_STATUS0 & VBUSOK)
+    {
         /* enable internal oscillator */
         REG_POWER = PWR_BANDGAP | PWR_RECEIVER | PWR_MEASURE | PWR_INT_OSC;
         REG_WRITE(ADDRESS_POWER, &REG_POWER, 1);
-        dev->delay_ms(1);
+        delay(1);
 
         /* read cc1 */
         REG_SWITCHES0 = PDWN1 | PDWN2 | MEAS_CC1;
         REG_SWITCHES1 = SPECREV0;
         REG_MEASURE = 49;
         REG_WRITE(ADDRESS_SWITCHES0, &REG_SWITCHES0, 3);
-        dev->delay_ms(1);
-        while (FUSB302_read_cc_lvl(dev, &dev->cc1) != FUSB302_SUCCESS) {
-            dev->delay_ms(1);
+        delay(1);
+        while (this->read_cc_lvl(&this->cc1) != FUSB302_SUCCESS) {
+            delay(1);
         }
 
         /* read cc2 */
         REG_SWITCHES0 = PDWN1 | PDWN2 | MEAS_CC2;
         REG_WRITE(ADDRESS_SWITCHES0, &REG_SWITCHES0, 1);
-        dev->delay_ms(1);
-        while (FUSB302_read_cc_lvl(dev, &dev->cc2) != FUSB302_SUCCESS) {
-            dev->delay_ms(1);
+        delay(1);
+        while (this->read_cc_lvl(&this->cc2) != FUSB302_SUCCESS) {
+            delay(1);
         }
 
         /* clear interrupt */
         REG_READ(ADDRESS_INTERRUPTA, &REG_INTERRUPTA, 2);
-        dev->interrupta = 0;
-        dev->interruptb = 0;        
+        this->interrupta = 0;
+        this->interruptb = 0;        
 
         /* enable tx on cc pin */
-        if (dev->cc1 > 0) {
+        if (this->cc1 > 0) {
             REG_SWITCHES0 = PDWN1 | PDWN2 | MEAS_CC1;
             REG_SWITCHES1 = SPECREV0 | AUTO_CRC | TXCC1;
             //REG_SWITCHES1 = SPECREV0 | TXCC1;
-        } else if (dev->cc2 > 0) {
+        } else if (this->cc2 > 0) {
             REG_SWITCHES0 = PDWN1 | PDWN2 | MEAS_CC2;
             REG_SWITCHES1 = SPECREV0 | AUTO_CRC | TXCC2;
             //REG_SWITCHES1 = SPECREV0 | TXCC2;
@@ -346,7 +358,7 @@ static FUSB302_ret_t FUSB302_state_unattached(FUSB302_dev_t *dev, FUSB302_event_
         REG_WRITE(ADDRESS_SWITCHES0, &REG_SWITCHES0, 2);
 
         /* update state */
-        dev->state = FUSB302_STATE_ATTACHED;
+        this->state = FUSB302_STATE_ATTACHED;
         if (events) {
             *events |= FUSB302_EVENT_ATTACHED;
         }
@@ -354,12 +366,13 @@ static FUSB302_ret_t FUSB302_state_unattached(FUSB302_dev_t *dev, FUSB302_event_
     return FUSB302_SUCCESS;
 }
 
-static FUSB302_ret_t FUSB302_state_attached(FUSB302_dev_t *dev, FUSB302_event_t * events)
+FUSB302_ret_t FUSB302_dev_c::state_attached(FUSB302_event_t * events)
 {
     REG_READ(ADDRESS_STATUS0A, &REG_STATUS0A, 7);
-    dev->interrupta |= REG_INTERRUPTA;
-    dev->interruptb |= REG_INTERRUPTB;    
-    if (dev->vbus_sense && ((REG_STATUS0 & VBUSOK) == 0)) {
+    this->interrupta |= REG_INTERRUPTA;
+    this->interruptb |= REG_INTERRUPTB;    
+    if (this->vbus_sense && ((REG_STATUS0 & VBUSOK) == 0))
+    {
         /* reset cc pins to pull down */
         REG_SWITCHES0 = PDWN1 | PDWN2;
         REG_SWITCHES1 = SPECREV0;
@@ -371,60 +384,61 @@ static FUSB302_ret_t FUSB302_state_attached(FUSB302_dev_t *dev, FUSB302_event_t 
         REG_WRITE(ADDRESS_POWER, &REG_POWER, 1);
 
         /* update state */
-        dev->state = FUSB302_STATE_UNATTACHED;
-        if (events) {
+        this->state = FUSB302_STATE_UNATTACHED;
+        if (events)
+        {
             *events |= FUSB302_EVENT_DETACHED;
         }
         return FUSB302_SUCCESS;
     }
-    if (REG_STATUS0A & HARDRST) {
+    if (REG_STATUS0A & HARDRST)
+    {
         uint8_t reg_control = PD_RESET;
         REG_WRITE(ADDRESS_RESET, &reg_control, 1);
         return FUSB302_SUCCESS;
     }
-    if (dev->interruptb & I_GCRCSENT) {
-        dev->interruptb &= ~I_GCRCSENT;
-        if (events) {
+    if (this->interruptb & I_GCRCSENT)
+    {
+        this->interruptb &= ~I_GCRCSENT;
+        if (events)
+        {
             *events |= FUSB302_EVENT_GOOD_CRC_SENT;
         }
     }
-    if ((REG_STATUS1 & RX_EMPTY) == 0) {
-        if (FUSB302_read_incoming_packet(dev, events) != FUSB302_SUCCESS) {
+    if ((REG_STATUS1 & RX_EMPTY) == 0)
+    {
+        if (this->read_incoming_packet(events) != FUSB302_SUCCESS)
+        {
             uint8_t rx_flush = REG_CONTROL1 | RX_FLUSH;
-            reg_write(dev, ADDRESS_CONTROL1, &rx_flush, 1);
+            this->reg_write(ADDRESS_CONTROL1, &rx_flush, 1);
         }
     }
     return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_init(FUSB302_dev_t *dev)
+FUSB302_ret_t FUSB302_dev_c::init()
 {
-    if (dev->i2c_address == 0) {
-        dev->err_msg = FUSB302_ERR_MSG("Invalid i2c address");
-        return FUSB302_ERR_PARAM;
-    }
-    if (dev->i2c_read == 0) {
-        dev->err_msg = FUSB302_ERR_MSG("Invalid i2c_read function");
-        return FUSB302_ERR_PARAM;
-    }
-    if (dev->i2c_write == 0) {
-        dev->err_msg = FUSB302_ERR_MSG("Invalid i2c_write function");
+    if (this->i2c_address == 0)
+    {
+        this->err_msg = FUSB302_ERR_MSG("Invalid i2c address");
         return FUSB302_ERR_PARAM;
     }
 
-    if (reg_read(dev, ADDRESS_DEVICE_ID, &dev->reg_control[1], 1) != FUSB302_SUCCESS) {
-        dev->err_msg = FUSB302_ERR_MSG("Device not found");
+    if (this->reg_read(ADDRESS_DEVICE_ID, &this->reg_control[1], 1) != FUSB302_SUCCESS)
+    {
+        this->err_msg = FUSB302_ERR_MSG("Device not found");
         return FUSB302_ERR_READ_DEVICE;
     }
 
-	if ((dev->reg_control[1] & 0x80) == 0) {
-        dev->err_msg = FUSB302_ERR_MSG("Invalid device version");
+	if ((this->reg_control[1] & 0x80) == 0)
+    {
+        this->err_msg = FUSB302_ERR_MSG("Invalid device version");
         return FUSB302_ERR_DEVICE_ID;
     }
 
-    dev->state = FUSB302_STATE_UNATTACHED;
-    dev->rx_header = 0;
-    memset(dev->rx_buffer, 0, sizeof(dev->rx_buffer));
+    this->state = FUSB302_STATE_UNATTACHED;
+    this->rx_header = 0;
+    memset(this->rx_buffer, 0, sizeof(this->rx_buffer));
 
     /* restore default settings */
     REG_RESET = SW_RES;
@@ -465,46 +479,53 @@ FUSB302_ret_t FUSB302_init(FUSB302_dev_t *dev)
     REG_POWER = PWR_BANDGAP | PWR_RECEIVER | PWR_MEASURE;
     REG_WRITE(ADDRESS_POWER, &REG_POWER, 1);
     
-    dev->vbus_sense = 1;
-    dev->err_msg = FUSB302_ERR_MSG("");
+    this->vbus_sense = 1;
+    this->err_msg = FUSB302_ERR_MSG("");
 	return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_pd_reset(FUSB302_dev_t *dev)
+FUSB302_ret_t FUSB302_dev_c::pd_reset()
 {
     uint8_t reg = PD_RESET;
     REG_WRITE(ADDRESS_RESET, &reg, 1);
     return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_pdwn_cc(FUSB302_dev_t *dev, uint8_t enable)
+FUSB302_ret_t FUSB302_dev_c::pdwn_cc(uint8_t enable)
 {
     REG_SWITCHES0 = enable ? (PDWN1 | PDWN2) : 0;
 	REG_WRITE(ADDRESS_SWITCHES0, &REG_SWITCHES0, 1);
     return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_set_vbus_sense(FUSB302_dev_t *dev, uint8_t enable)
+FUSB302_ret_t FUSB302_dev_c::set_vbus_sense(uint8_t enable)
 {
-    if (dev->vbus_sense != enable) {
-        if (enable) {
+    if (this->vbus_sense != enable)
+    {
+        if (enable)
+        {
             REG_MASK &= ~M_VBUSOK;  /* enable VBUSOK interrupt */
-        } else { 
+        }
+        else
+        { 
             REG_MASK |= M_VBUSOK;   /* disable VBUSOK interrupt */
         }
         REG_WRITE(ADDRESS_MASK, &REG_MASK, 1);
-        dev->vbus_sense = enable;
+        this->vbus_sense = enable;
     }
     return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_get_ID(FUSB302_dev_t *dev, uint8_t * version_ID, uint8_t * revision_ID)
+FUSB302_ret_t FUSB302_dev_c::get_ID(uint8_t * version_ID, uint8_t * revision_ID)
 {
-    if (dev && (REG_DEVICE_ID & 0x80)) {
-        if (version_ID) {
+    if (REG_DEVICE_ID & 0x80)
+    {
+        if (version_ID)
+        {
             *version_ID = (REG_DEVICE_ID >> 4) & 0x7;
         }
-        if (revision_ID) {
+        if (revision_ID)
+        {
             *revision_ID = (REG_DEVICE_ID >> 0) & 0xF;
         }
         return FUSB302_SUCCESS;
@@ -512,18 +533,20 @@ FUSB302_ret_t FUSB302_get_ID(FUSB302_dev_t *dev, uint8_t * version_ID, uint8_t *
     return FUSB302_ERR_PARAM;
 }
 
-FUSB302_ret_t FUSB302_get_cc(FUSB302_dev_t *dev, uint8_t *cc1, uint8_t *cc2)
+FUSB302_ret_t FUSB302_dev_c::get_cc(uint8_t *cc1, uint8_t *cc2)
 {
-    if (cc1) {
-        *cc1 = dev->cc1;
+    if (cc1)
+    {
+        *cc1 = this->cc1;
     }
-    if (cc2) {
-        *cc2 = dev->cc2;
+    if (cc2)
+    {
+        *cc2 = this->cc2;
     }
 	return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_get_vbus_level(FUSB302_dev_t *dev, uint8_t *vbus)
+FUSB302_ret_t FUSB302_dev_c::get_vbus_level(uint8_t *vbus)
 {
     uint8_t reg_control;
     REG_READ(ADDRESS_STATUS0, &reg_control, 1);
@@ -531,19 +554,21 @@ FUSB302_ret_t FUSB302_get_vbus_level(FUSB302_dev_t *dev, uint8_t *vbus)
 	return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_get_message(FUSB302_dev_t *dev, uint16_t * header, uint32_t * data)
+FUSB302_ret_t FUSB302_dev_c::get_message(uint16_t * header, uint32_t * data)
 {
-    if (header) {
-        *header = dev->rx_header;
+    if (header)
+    {
+        *header = this->rx_header;
     }
-    if (data) {
-        uint8_t len = (dev->rx_header >> 12) & 0x7;
-        memcpy(data, dev->rx_buffer, len * 4);
+    if (data)
+    {
+        uint8_t len = (this->rx_header >> 12) & 0x7;
+        memcpy(data, this->rx_buffer, len * 4);
     }
 	return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_tx_sop(FUSB302_dev_t *dev, uint16_t header, const uint32_t *data)
+FUSB302_ret_t FUSB302_dev_c::tx_sop(uint16_t header, const uint32_t *data)
 {
     uint8_t buf[40];
     uint8_t * pbuf = buf;
@@ -555,7 +580,8 @@ FUSB302_ret_t FUSB302_tx_sop(FUSB302_dev_t *dev, uint16_t header, const uint32_t
     *pbuf++ = (uint8_t)TX_TOKEN_PACKSYM | ((obj_count << 2) + 2);
     *pbuf++ = header & 0xFF; header >>= 8;
     *pbuf++ = header & 0xFF;
-    for (uint8_t i = 0; i < obj_count; i++) {
+    for (uint8_t i = 0; i < obj_count; i++)
+    {
         uint32_t d = *data++;
         *pbuf++ = d & 0xFF; d >>= 8;
         *pbuf++ = d & 0xFF; d >>= 8;
@@ -567,30 +593,61 @@ FUSB302_ret_t FUSB302_tx_sop(FUSB302_dev_t *dev, uint16_t header, const uint32_t
     *pbuf++ = (uint8_t)TX_TOKEN_TXOFF;
     *pbuf++ = (uint8_t)TX_TOKEN_TXON;
     REG_WRITE(ADDRESS_FIFOS, buf, pbuf - buf);
-    dev->delay_ms(1);
+    delay(1);
 	return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_tx_hard_reset(FUSB302_dev_t *dev)
+FUSB302_ret_t FUSB302_dev_c::tx_hard_reset()
 {
     uint8_t reg_control = REG_CONTROL3;
     reg_control |= SEND_HARDRESET;
     REG_WRITE(ADDRESS_CONTROL3, &reg_control, 1);
-    dev->delay_ms(5);
+    delay(5);
     reg_control = PD_RESET;
     REG_WRITE(ADDRESS_RESET, &reg_control, 1);
     return FUSB302_SUCCESS;
 }
 
-FUSB302_ret_t FUSB302_alert(FUSB302_dev_t *dev, FUSB302_event_t * events)
+FUSB302_ret_t FUSB302_dev_c::alert(FUSB302_event_t * events)
 {
-    FUSB302_ret_t (* const handler[]) (FUSB302_dev_t *, FUSB302_event_t *) = {
-        FUSB302_state_unattached,
-        FUSB302_state_attached
-    };
-    if (dev->state < sizeof(handler) / sizeof(handler[0])) {
-        return handler[dev->state](dev, events);
+    switch (this->state)
+    {
+        case 0:
+            this->state_unattached(events);
+            break;
+
+        case 1:
+            this->state_attached(events);
+            break;
     }
-    dev->state = FUSB302_STATE_UNATTACHED;
+    this->state = FUSB302_STATE_UNATTACHED;
+    return FUSB302_SUCCESS;
+}
+
+
+FUSB302_ret_t FUSB302_dev_c::i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
+{
+    Wire.beginTransmission(dev_addr);
+    Wire.write(reg_addr);
+    Wire.endTransmission();
+    Wire.requestFrom(dev_addr, count);
+    while (Wire.available() && count > 0)
+    {
+        *data++ = Wire.read();
+        count--;
+    }
+    return count == 0 ? FUSB302_SUCCESS : FUSB302_ERR_READ_DEVICE;
+}
+
+FUSB302_ret_t FUSB302_dev_c::i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
+{
+    Wire.beginTransmission(dev_addr);
+    Wire.write(reg_addr);
+    while (count > 0)
+    {
+        Wire.write(*data++);
+        count--;
+    }
+    Wire.endTransmission();
     return FUSB302_SUCCESS;
 }

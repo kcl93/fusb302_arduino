@@ -18,8 +18,6 @@
 
 #include <stdint.h>
 
-#include <Arduino.h>
-#include <Wire.h>
 #include <HardwareSerial.h>
 
 #include "FUSB302_UFP.h"
@@ -64,15 +62,12 @@ class PD_UFP_c
         static void clock_prescale_set(uint8_t prescaler);
 
     protected:
-        static FUSB302_ret_t FUSB302_i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count);
-        static FUSB302_ret_t FUSB302_i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count);
-        static FUSB302_ret_t FUSB302_delay_ms(uint32_t t);
         void handle_protocol_event(event_t events);
         void handle_FUSB302_event(FUSB302_event_t events);
         bool timer(void);
         void set_default_power(void);
         // Device
-        FUSB302_dev_t FUSB302;
+        FUSB302_dev_c FUSB302;
         PD_UFP_Protocol_c protocol;
         uint8_t int_pin;
         // Power ready power
@@ -95,10 +90,6 @@ class PD_UFP_c
         uint8_t wait_src_cap;
         uint8_t wait_ps_rdy;
         uint8_t send_request;
-        static uint8_t clock_prescaler;
-        // Time functions        
-        void delay_ms(uint16_t ms);
-        uint16_t clock_ms(void);
         // Status logging
         virtual void status_log_event(uint8_t status, uint32_t * obj = 0) {}
 };
