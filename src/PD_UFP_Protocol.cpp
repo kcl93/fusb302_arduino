@@ -37,13 +37,6 @@
 #define PD_EXT_MSG_TYPE_SINK_CAP_EXT        0xF
 
 typedef struct {
-    uint8_t type;
-    uint8_t spec_rev;
-    uint8_t id;
-    uint8_t num_of_obj;
-} PD_msg_header_info_t;
-
-typedef struct {
     uint16_t limit;
     uint8_t use_voltage;
     uint8_t use_current;
@@ -51,8 +44,8 @@ typedef struct {
 
 struct PD_msg_state_t {
     const char * name;
-    void (*handler)(uint16_t header, uint32_t * obj, event_t * events);
-    bool (*responder)(uint16_t * header, uint32_t * obj);
+    void (*handler)(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events);
+    bool (*responder)(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj);
 };
 
 /* Optimize RAM usage on AVR MCU by allocate const in PROGMEM */
@@ -76,30 +69,30 @@ T(NS); T(Get_Src_Ext); T(Get_Stat); T(FR_Swap); T(Get_PPS_Stat); T(Get_CC); T(Ge
 
 static const struct PD_msg_state_t ctrl_msg_list[] PROGMEM = {
     {.name = str_C0,            .handler = 0,                   .responder = 0},
-    {.name = str_GoodCRC,       .handler = handler_good_crc,    .responder = 0},
-    {.name = str_GotoMin,       .handler = handler_goto_min,    .responder = 0},
-    {.name = str_Accept,        .handler = handler_accept,      .responder = 0},
-    {.name = str_Reject,        .handler = handler_reject,      .responder = 0},
+    {.name = str_GoodCRC,       .handler = PD_UFP_Protocol_c::handler_good_crc,    .responder = 0},
+    {.name = str_GotoMin,       .handler = PD_UFP_Protocol_c::handler_goto_min,    .responder = 0},
+    {.name = str_Accept,        .handler = PD_UFP_Protocol_c::handler_accept,      .responder = 0},
+    {.name = str_Reject,        .handler = PD_UFP_Protocol_c::handler_reject,      .responder = 0},
     {.name = str_Ping,          .handler = 0,                   .responder = 0},
-    {.name = str_PS_RDY,        .handler = handler_ps_rdy,      .responder = 0},
-    {.name = str_Get_Src_Cap,   .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_Sink_Cap,  .handler = 0,                   .responder = responder_get_sink_cap},
-    {.name = str_DR_Swap,       .handler = 0,                   .responder = responder_reject},
-    {.name = str_PR_Swap,       .handler = 0,                   .responder = responder_not_support},
-    {.name = str_VCONN_Swap,    .handler = 0,                   .responder = responder_reject},
+    {.name = str_PS_RDY,        .handler = PD_UFP_Protocol_c::handler_ps_rdy,      .responder = 0},
+    {.name = str_Get_Src_Cap,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Sink_Cap,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_get_sink_cap},
+    {.name = str_DR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_reject},
+    {.name = str_PR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_VCONN_Swap,    .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_reject},
     {.name = str_Wait,          .handler = 0,                   .responder = 0},
-    {.name = str_Soft_Rst,      .handler = 0,                   .responder = responder_soft_reset},
+    {.name = str_Soft_Rst,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_soft_reset},
     {.name = str_Dat_Rst,       .handler = 0,                   .responder = 0},
     {.name = str_Dat_Rst_Cpt,   .handler = 0,                   .responder = 0},
     
     {.name = str_NS,            .handler = 0,                   .responder = 0},
-    {.name = str_Get_Src_Ext,   .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_Stat,      .handler = 0,                   .responder = responder_not_support},
-    {.name = str_FR_Swap,       .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_PPS_Stat,  .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_CC,        .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_Sink_Ext,  .handler = 0,                   .responder = responder_sink_cap_ext},
-    {.name = str_C_R,           .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Get_Src_Ext,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Stat,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_FR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_PPS_Stat,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_CC,        .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Sink_Ext,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_sink_cap_ext},
+    {.name = str_C_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
 T(D0); T(Src_Cap); T(Request); T(BIST); T(Sink_Cap); T(Bat_Stat); T(Alert); T(Get_CI);
@@ -108,13 +101,13 @@ T(D_R);
 
 static const struct PD_msg_state_t data_msg_list[] PROGMEM = {
     {.name = str_D0,            .handler = 0,                   .responder = 0},
-    {.name = str_Src_Cap,       .handler = handler_source_cap,  .responder = responder_source_cap},
-    {.name = str_Request,       .handler = 0,                   .responder = responder_not_support},
-    {.name = str_BIST,          .handler = handler_BIST,        .responder = 0},
-    {.name = str_Sink_Cap,      .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Bat_Stat,      .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Alert,         .handler = handler_alert,       .responder = 0},
-    {.name = str_Get_CI,        .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Src_Cap,       .handler = PD_UFP_Protocol_c::handler_source_cap,  .responder = PD_UFP_Protocol_c::responder_source_cap},
+    {.name = str_Request,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_BIST,          .handler = PD_UFP_Protocol_c::handler_BIST,        .responder = 0},
+    {.name = str_Sink_Cap,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Bat_Stat,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Alert,         .handler = PD_UFP_Protocol_c::handler_alert,       .responder = 0},
+    {.name = str_Get_CI,        .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_Enter_USB,     .handler = 0,                   .responder = 0},
     {.name = str_D9,            .handler = 0,                   .responder = 0},
     {.name = str_D10,           .handler = 0,                   .responder = 0},
@@ -122,9 +115,9 @@ static const struct PD_msg_state_t data_msg_list[] PROGMEM = {
     {.name = str_D12,           .handler = 0,                   .responder = 0},
     {.name = str_D13,           .handler = 0,                   .responder = 0},
     {.name = str_D14,           .handler = 0,                   .responder = 0},
-    {.name = str_VDM,           .handler = handler_vender_def,  .responder = responder_vender_def},
+    {.name = str_VDM,           .handler = PD_UFP_Protocol_c::handler_vender_def,  .responder = PD_UFP_Protocol_c::responder_vender_def},
 
-    {.name = str_D_R,           .handler = 0,                   .responder = responder_not_support},
+    {.name = str_D_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
 T(E0); T(Src_Cap_Ext); T(Status); T(Get_Bat_cap); T(Get_Bat_Stat); T(Bat_Cap); T(Get_Mfg_Info); T(Mfg_Info);
@@ -132,24 +125,24 @@ T(Sec_Request); T(Sec_Response); T(FU_request); T(FU_Response); T(PPS_Stat); T(C
 T(E_R);
 
 static const struct PD_msg_state_t ext_msg_list[] PROGMEM = {
-    {.name = str_E0,            .handler = 0,                   .responder = responder_not_support},
+    {.name = str_E0,            .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_Src_Cap_Ext,   .handler = 0,                   .responder = 0},
     {.name = str_Status,        .handler = 0,                   .responder = 0},
-    {.name = str_Get_Bat_cap,   .handler = 0,                   .responder = responder_not_support},
-    {.name = str_Get_Bat_Stat,  .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Get_Bat_cap,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Bat_Stat,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_Bat_Cap,       .handler = 0,                   .responder = 0},
-    {.name = str_Get_Mfg_Info,  .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Get_Mfg_Info,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_Mfg_Info,      .handler = 0,                   .responder = 0},
-    {.name = str_Sec_Request,   .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Sec_Request,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_Sec_Response,  .handler = 0,                   .responder = 0},
-    {.name = str_FU_request,    .handler = 0,                   .responder = responder_not_support},
+    {.name = str_FU_request,    .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
     {.name = str_FU_Response,   .handler = 0,                   .responder = 0},
-    {.name = str_PPS_Stat,      .handler = handler_PPS_Status,  .responder = 0},
+    {.name = str_PPS_Stat,      .handler = PD_UFP_Protocol_c::handler_PPS_Status,  .responder = 0},
     {.name = str_Country_Info,  .handler = 0,                   .responder = 0},
     {.name = str_Country_Code,  .handler = 0,                   .responder = 0},
-    {.name = str_Sink_Cap_Ext,  .handler = 0,                   .responder = responder_not_support},
+    {.name = str_Sink_Cap_Ext,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
 
-    {.name = str_E_R,           .handler = 0,                   .responder = responder_not_support},
+    {.name = str_E_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
 static const PD_power_option_setting_t power_option_setting[8] = {
@@ -178,7 +171,7 @@ uint8_t PD_UFP_Protocol_c::evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_cu
     }
 
     setting = &power_option_setting[option];
-    for (uint8_t n = 0; get_power_info(n, &info); n++)
+    for (uint8_t n = 0; this->get_power_info(n, &info); n++)
     {
         if (info.type == PD_PDO_TYPE_AUGMENTED_PDO)
         {
@@ -204,7 +197,7 @@ uint8_t PD_UFP_Protocol_c::evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_cu
     return selected;
 }
 
-void PD_UFP_Protocol_c::parse_header(PD_msg_header_info_t * info, uint16_t header)
+void PD_UFP_Protocol_c::parse_header(PD_msg_header_info_t *info, uint16_t header)
 {
     /* Reference: 6.2.1.1 Message Header */ 
     info->type = (header >> 0) & 0x1F;                  /*   4...0  Message Type */
@@ -236,24 +229,24 @@ uint16_t PD_UFP_Protocol_c::generate_header_ext(uint8_t type, uint8_t data_size,
     return h;
 }
 
-void PD_UFP_Protocol_c::handler_good_crc(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_good_crc(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     /* Reference: 6.2.1.3 Message ID 
        MessageIDCounter Shall be initialized to zero at power-on / reset, increment when receive GoodCRC Message */
-    uint8_t message_id = this->message_id;
+    uint8_t message_id = p->message_id;
     if (++message_id > 7)
     {
         message_id = 0;
     }
-    this->message_id = message_id;
+    p->message_id = message_id;
 }
 
-void PD_UFP_Protocol_c::handler_goto_min(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_goto_min(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     // Not implemented
 }
 
-void PD_UFP_Protocol_c::handler_accept(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_accept(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     if (events)
     {
@@ -261,7 +254,7 @@ void PD_UFP_Protocol_c::handler_accept(uint16_t header, uint32_t * obj, event_t 
     }
 }
 
-void PD_UFP_Protocol_c::handler_reject(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_reject(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     if (events)
     {
@@ -269,7 +262,7 @@ void PD_UFP_Protocol_c::handler_reject(uint16_t header, uint32_t * obj, event_t 
     }
 }
 
-void PD_UFP_Protocol_c::handler_ps_rdy(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_ps_rdy(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     if (events)
     {
@@ -277,51 +270,51 @@ void PD_UFP_Protocol_c::handler_ps_rdy(uint16_t header, uint32_t * obj, event_t 
     }
 }
 
-void handler_source_cap(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_source_cap(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     PD_msg_header_info_t h;
-    parse_header(&h, header);
-    this->power_data_obj_count = h.num_of_obj;
+    p->parse_header(&h, header);
+    p->power_data_obj_count = h.num_of_obj;
     for (uint8_t i = 0; i < h.num_of_obj; i++)
     {
-        this->power_data_obj[i] = obj[i];
+        p->power_data_obj[i] = obj[i];
     }
-    this->power_data_obj_selected = this->evaluate_src_cap(this->PPS_voltage, this->PPS_current);
+    p->power_data_obj_selected = p->evaluate_src_cap(p->PPS_voltage, p->PPS_current);
     if (events)
     {
         *events |= PD_PROTOCOL_EVENT_SRC_CAP;
     }
 }
 
-static void PD_UFP_Protocol_c::handler_BIST(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_BIST(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement BIST
 }
 
-static void PD_UFP_Protocol_c::handler_alert(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_alert(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement alert
 }
 
-static void PD_UFP_Protocol_c::handler_vender_def(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_vender_def(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     // TODO: implement VDM parsing
 }
 
-static void PD_UFP_Protocol_c::handler_PPS_Status(uint16_t header, uint32_t * obj, event_t * events)
+void PD_UFP_Protocol_c::handler_PPS_Status(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events)
 {
     /* Handle chunked Extended message,  Offset 2 byte for Extended Message Header */
-    this->PPSSDB[0] = (obj[0] >> 16) & 0xFF;
-    this->PPSSDB[1] = (obj[0] >> 24) & 0xFF;
-    this->PPSSDB[2] = (obj[1] >>  0) & 0xFF;
-    this->PPSSDB[3] = (obj[1] >>  8) & 0xFF;
+    p->PPSSDB[0] = (obj[0] >> 16) & 0xFF;
+    p->PPSSDB[1] = (obj[0] >> 24) & 0xFF;
+    p->PPSSDB[2] = (obj[1] >>  0) & 0xFF;
+    p->PPSSDB[3] = (obj[1] >>  8) & 0xFF;
     if (events)
     {
         *events |= PD_PROTOCOL_EVENT_PPS_STATUS;
     }
 }
 
-bool PD_UFP_Protocol_c::responder_get_sink_cap(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_get_sink_cap(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
     /* Reference: 6.4.1.2.3 Sink Fixed Supply Power Data Object */
     uint32_t data = ((uint32_t)100 << 0) |                        /* B9...0     Operational Current in 10mA units */
@@ -330,11 +323,11 @@ bool PD_UFP_Protocol_c::responder_get_sink_cap(uint16_t * header, uint32_t * obj
                     ((uint32_t)1 << 28) |                         /* B28        Higher Capability */
                     ((uint32_t)PD_PDO_TYPE_FIXED_SUPPLY << 30);   /* B31...30   Fixed supply */
     *obj = data; /* Only implement 5V 1A Fix supply PDO. Source rarely request sink cap */
-    *header = this->generate_header(PD_DATA_MSG_TYPE_SINK_CAP, 1);
+    *header = p->generate_header(PD_DATA_MSG_TYPE_SINK_CAP, 1);
     return true;
 }
 
-bool PD_UFP_Protocol_c::responder_sink_cap_ext(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_sink_cap_ext(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
     /* Reference: 6.5.13 Sink_Capabilities_Extended Message 
                   6.12.3 Applicability of Extended Messages  (Normative; Shall be supported) */
@@ -375,39 +368,39 @@ bool PD_UFP_Protocol_c::responder_sink_cap_ext(uint16_t * header, uint32_t * obj
     {
         COPY_PDO(obj[i], SKEDB[i]);
     }
-    *header = this->generate_header_ext(PD_EXT_MSG_TYPE_SINK_CAP_EXT, 21, obj);
+    *header = p->generate_header_ext(PD_EXT_MSG_TYPE_SINK_CAP_EXT, 21, obj);
     return false;
 }
 
-bool PD_UFP_Protocol_c::responder_reject(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_reject(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
-    *header = this->generate_header(PD_CONTROL_MSG_TYPE_REJECT, 0);
+    *header = p->generate_header(PD_CONTROL_MSG_TYPE_REJECT, 0);
     return true;
 }
 
-bool PD_UFP_Protocol_c::responder_not_support(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_not_support(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
-    *header = this->generate_header(PD_CONTROL_MSG_TYPE_NOT_SUPPORT, 0);
+    *header = p->generate_header(PD_CONTROL_MSG_TYPE_NOT_SUPPORT, 0);
     return true;
 }
 
-bool PD_UFP_Protocol_c::responder_soft_reset(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_soft_reset(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
-    *header = this->generate_header(PD_CONTROL_MSG_TYPE_ACCEPT, 0);
+    *header = p->generate_header(PD_CONTROL_MSG_TYPE_ACCEPT, 0);
     return true;
 }
 
-bool PD_UFP_Protocol_c::responder_source_cap(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_source_cap(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
     PD_power_info_t info;
-    uint32_t data, pos = this->power_data_obj_selected + 1;
-    this->get_power_info(this->power_data_obj_selected, &info);
+    uint32_t data, pos = p->power_data_obj_selected + 1;
+    p->get_power_info(p->power_data_obj_selected, &info);
     /* Reference: 6.4.2 Request Message */
     if (info.type == PD_PDO_TYPE_AUGMENTED_PDO)
     {
         /* NOTE: To compatible PD2.0 PHY, do not set Unchunked Extended Messages Supported */
-        data = ((uint32_t)this->PPS_current << 0) |    /* B6 ...0    Operating Current 50mA units */
-               ((uint32_t)this->PPS_voltage << 9) |    /* B19...9    Output Voltage in 20mV units */
+        data = ((uint32_t)p->PPS_current << 0) |    /* B6 ...0    Operating Current 50mA units */
+               ((uint32_t)p->PPS_voltage << 9) |    /* B19...9    Output Voltage in 20mV units */
                ((uint32_t)1 << 25) |                /* B25        USB Communication Capable */
                ((uint32_t)pos << 28);               /* B30...28   Object position (000b is Reserved and Shall Not be used) */
     }
@@ -420,11 +413,11 @@ bool PD_UFP_Protocol_c::responder_source_cap(uint16_t * header, uint32_t * obj)
                ((uint32_t)pos << 28);    /* B30...28   Object position (000b is Reserved and Shall Not be used) */
     }
     *obj = data;
-    *header = this->generate_header(PD_DATA_MSG_TYPE_REQUEST, 1);
+    *header = p->generate_header(PD_DATA_MSG_TYPE_REQUEST, 1);
     return true;
 }
 
-bool PD_UFP_Protocol_c::responder_vender_def(uint16_t * header, uint32_t * obj)
+bool PD_UFP_Protocol_c::responder_vender_def(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj)
 {
     // TODO: implement VDM respond
     return false;
@@ -455,7 +448,7 @@ void PD_UFP_Protocol_c::handle_msg(uint16_t header, uint32_t * obj, event_t * ev
     SET_MSG_STAGE(this->msg_state, state);
     if (this->msg_state->handler)
     {
-        this->msg_state->handler(header, obj, events);
+        this->msg_state->handler(this, header, obj, events);
     }
 }
 
@@ -463,7 +456,7 @@ bool PD_UFP_Protocol_c::respond(uint16_t * header, uint32_t * obj)
 {
     if (this->msg_state && this->msg_state->responder && header && obj)
     {
-        return this->msg_state->responder((uint16_t *)header, obj);
+        return this->msg_state->responder(this, (uint16_t *)header, obj);
     }
     return false;
 }
@@ -480,7 +473,7 @@ void PD_UFP_Protocol_c::create_get_PPS_status(uint16_t *header)
 
 void PD_UFP_Protocol_c::create_request(uint16_t * header, uint32_t * obj)
 {
-    this->responder_source_cap(header, obj);
+    this->responder_source_cap(this, header, obj);
 }
 
 bool PD_UFP_Protocol_c::get_power_info(uint8_t index, PD_power_info_t * power_info)

@@ -54,7 +54,7 @@ uint8_t PD_UFP_Log_c::status_log_obj_add(uint16_t header, uint32_t * obj)
     if (obj) {
         uint8_t i, w = status_log_obj_write, r = status_log_obj_read;
         PD_msg_info_t info;
-        get_msg_info(header, &info);
+        this->protocol.get_msg_info(header, &info);
         for (i = 0; i < info.num_of_obj && (uint8_t)(w - r) < STATUS_LOG_OBJ_MASK; i++) {
             status_log_obj[w++ & STATUS_LOG_OBJ_MASK] = obj[i];
         }
@@ -72,11 +72,11 @@ void PD_UFP_Log_c::status_log_event(uint8_t status, uint32_t * obj)
     status_log_t * log = &status_log[status_log_write & STATUS_LOG_MASK];
     switch (status) {
     case STATUS_LOG_MSG_TX:
-        log->msg_header = get_tx_msg_header(&protocol);
+        log->msg_header = this->protocol.get_tx_msg_header();
         log->obj_count = status_log_obj_add(log->msg_header, obj);
         break;
     case STATUS_LOG_MSG_RX:
-        log->msg_header = get_rx_msg_header(&protocol);
+        log->msg_header = this->protocol.get_rx_msg_header();
         log->obj_count = status_log_obj_add(log->msg_header, obj);
         break;
     default:
@@ -106,7 +106,7 @@ int PD_UFP_Log_c::status_log_readline_msg(char * buffer, int maxlen, status_log_
         // output message header
         char type = log->status == STATUS_LOG_MSG_TX ? 'T' : 'R';
         PD_msg_info_t info;
-        get_msg_info(log->msg_header, &info);
+        this->protocol.get_msg_info(log->msg_header, &info);
         if (status_log_level >= PD_LOG_LEVEL_VERBOSE) {
             const char * ext = info.extended ? "ext, " : "";
             LOG("%s%cX %s id=%d %sraw=0x%04X\n", t, type, info.name, info.id, ext, log->msg_header);
@@ -133,10 +133,10 @@ int PD_UFP_Log_c::status_log_readline_src_cap(char * buffer, int maxlen)
     PD_power_info_t p;
     int n = 0;
     uint8_t i = status_log_counter;
-    if (get_power_info(&protocol, i, &p)) {
+    if (this->protocol.get_power_info(i, &p)) {
         const char * str_pps[] = {"", " BAT", " VAR", " PPS"};  /* PD_power_data_obj_type_t */
         char * t = status_log_time;
-        uint8_t selected = get_selected_power(&protocol);
+        uint8_t selected = this->protocol.get_selected_power();
         char min_v[8] = {0}, max_v[8] = {0}, power[8] = {0};
         if (p.min_v) SNPRINTF(min_v, sizeof(min_v)-1, PSTR("%d.%02dV-"), p.min_v / 20, (p.min_v * 5) % 100);
         if (p.max_v) SNPRINTF(max_v, sizeof(max_v)-1, PSTR("%d.%02dV"), p.max_v / 20, (p.max_v * 5) % 100);

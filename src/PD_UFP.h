@@ -73,7 +73,7 @@ class PD_UFP_c
         void set_default_power(void);
         // Device
         FUSB302_dev_t FUSB302;
-        t protocol;
+        PD_UFP_Protocol_c protocol;
         uint8_t int_pin;
         // Power ready power
         uint16_t ready_voltage; //mV
