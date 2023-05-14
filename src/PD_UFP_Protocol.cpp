@@ -36,22 +36,31 @@
 
 #define PD_EXT_MSG_TYPE_SINK_CAP_EXT        0xF
 
-typedef struct {
+
+typedef struct PD_msg_header_info {
+    uint8_t type;
+    uint8_t spec_rev;
+    uint8_t id;
+    uint8_t num_of_obj;
+} PD_msg_header_info_t;
+
+typedef struct PD_power_option_setting {
     uint16_t limit;
     uint8_t use_voltage;
     uint8_t use_current;
 } PD_power_option_setting_t;
 
-struct PD_msg_state_t {
+typedef struct PD_msg_state {
     const char * name;
     void (*handler)(PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events);
     bool (*responder)(PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj);
-};
+} PD_msg_state_t;
+
 
 /* Optimize RAM usage on AVR MCU by allocate const in PROGMEM */
 #if defined(__AVR__)
 #include <avr/pgmspace.h>
-#define SET_MSG_STAGE(d, s) do { static struct PD_msg_state_t m; memcpy_P(&m, s, sizeof(struct PD_msg_state_t)); d = &m; } while (0)
+#define SET_MSG_STAGE(d, s) do { static PD_msg_state_t m; memcpy_P(&m, s, sizeof(PD_msg_state_t)); d = &m; } while (0)
 #define SET_MSG_NAME(d, s)  do { static char n[16]; strncpy_P(n, s, 15); d = n; } while (0)
 #define COPY_PDO(d, s)      do { memcpy_P(&d, &s, 4); } while (0)
 #else
@@ -67,85 +76,82 @@ T(C0); T(GoodCRC); T(GotoMin); T(Accept); T(Reject); T(Ping); T(PS_RDY); T(Get_S
 T(Get_Sink_Cap); T(DR_Swap); T(PR_Swap); T(VCONN_Swap); T(Wait); T(Soft_Rst); T(Dat_Rst); T(Dat_Rst_Cpt);
 T(NS); T(Get_Src_Ext); T(Get_Stat); T(FR_Swap); T(Get_PPS_Stat); T(Get_CC); T(Get_Sink_Ext); T(C_R);
 
-static const struct PD_msg_state_t ctrl_msg_list[] PROGMEM = {
-    {.name = str_C0,            .handler = 0,                   .responder = 0},
-    {.name = str_GoodCRC,       .handler = PD_UFP_Protocol_c::handler_good_crc,    .responder = 0},
-    {.name = str_GotoMin,       .handler = PD_UFP_Protocol_c::handler_goto_min,    .responder = 0},
-    {.name = str_Accept,        .handler = PD_UFP_Protocol_c::handler_accept,      .responder = 0},
-    {.name = str_Reject,        .handler = PD_UFP_Protocol_c::handler_reject,      .responder = 0},
-    {.name = str_Ping,          .handler = 0,                   .responder = 0},
-    {.name = str_PS_RDY,        .handler = PD_UFP_Protocol_c::handler_ps_rdy,      .responder = 0},
-    {.name = str_Get_Src_Cap,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_Sink_Cap,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_get_sink_cap},
-    {.name = str_DR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_reject},
-    {.name = str_PR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_VCONN_Swap,    .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_reject},
-    {.name = str_Wait,          .handler = 0,                   .responder = 0},
-    {.name = str_Soft_Rst,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_soft_reset},
-    {.name = str_Dat_Rst,       .handler = 0,                   .responder = 0},
-    {.name = str_Dat_Rst_Cpt,   .handler = 0,                   .responder = 0},
-    
-    {.name = str_NS,            .handler = 0,                   .responder = 0},
-    {.name = str_Get_Src_Ext,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_Stat,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_FR_Swap,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_PPS_Stat,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_CC,        .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_Sink_Ext,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_sink_cap_ext},
-    {.name = str_C_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+const PD_msg_state_t PD_UFP_Protocol_c::ctrl_msg_list[] PROGMEM = {
+    {.name = str_C0,            .handler = 0,                                   .responder = 0},
+    {.name = str_GoodCRC,       .handler = PD_UFP_Protocol_c::handler_good_crc, .responder = 0},
+    {.name = str_GotoMin,       .handler = PD_UFP_Protocol_c::handler_goto_min, .responder = 0},
+    {.name = str_Accept,        .handler = PD_UFP_Protocol_c::handler_accept,   .responder = 0},
+    {.name = str_Reject,        .handler = PD_UFP_Protocol_c::handler_reject,   .responder = 0},
+    {.name = str_Ping,          .handler = 0,                                   .responder = 0},
+    {.name = str_PS_RDY,        .handler = PD_UFP_Protocol_c::handler_ps_rdy,   .responder = 0},
+    {.name = str_Get_Src_Cap,   .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Sink_Cap,  .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_get_sink_cap},
+    {.name = str_DR_Swap,       .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_reject},
+    {.name = str_PR_Swap,       .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_VCONN_Swap,    .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_reject},
+    {.name = str_Wait,          .handler = 0,                                   .responder = 0},
+    {.name = str_Soft_Rst,      .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_soft_reset},
+    {.name = str_Dat_Rst,       .handler = 0,                                   .responder = 0},
+    {.name = str_Dat_Rst_Cpt,   .handler = 0,                                   .responder = 0},
+    {.name = str_NS,            .handler = 0,                                   .responder = 0},
+    {.name = str_Get_Src_Ext,   .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Stat,      .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_FR_Swap,       .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_PPS_Stat,  .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_CC,        .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Sink_Ext,  .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_sink_cap_ext},
+    {.name = str_C_R,           .handler = 0,                                   .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
 T(D0); T(Src_Cap); T(Request); T(BIST); T(Sink_Cap); T(Bat_Stat); T(Alert); T(Get_CI);
 T(Enter_USB); T(D9); T(D10); T(D11); T(D12); T(D13); T(D14); T(VDM);
 T(D_R); 
 
-static const struct PD_msg_state_t data_msg_list[] PROGMEM = {
-    {.name = str_D0,            .handler = 0,                   .responder = 0},
-    {.name = str_Src_Cap,       .handler = PD_UFP_Protocol_c::handler_source_cap,  .responder = PD_UFP_Protocol_c::responder_source_cap},
-    {.name = str_Request,       .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_BIST,          .handler = PD_UFP_Protocol_c::handler_BIST,        .responder = 0},
-    {.name = str_Sink_Cap,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Bat_Stat,      .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Alert,         .handler = PD_UFP_Protocol_c::handler_alert,       .responder = 0},
-    {.name = str_Get_CI,        .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Enter_USB,     .handler = 0,                   .responder = 0},
-    {.name = str_D9,            .handler = 0,                   .responder = 0},
-    {.name = str_D10,           .handler = 0,                   .responder = 0},
-    {.name = str_D11,           .handler = 0,                   .responder = 0},
-    {.name = str_D12,           .handler = 0,                   .responder = 0},
-    {.name = str_D13,           .handler = 0,                   .responder = 0},
-    {.name = str_D14,           .handler = 0,                   .responder = 0},
-    {.name = str_VDM,           .handler = PD_UFP_Protocol_c::handler_vender_def,  .responder = PD_UFP_Protocol_c::responder_vender_def},
-
-    {.name = str_D_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+const PD_msg_state_t PD_UFP_Protocol_c::data_msg_list[] PROGMEM = {
+    {.name = str_D0,            .handler = 0,                                       .responder = 0},
+    {.name = str_Src_Cap,       .handler = PD_UFP_Protocol_c::handler_source_cap,   .responder = PD_UFP_Protocol_c::responder_source_cap},
+    {.name = str_Request,       .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_BIST,          .handler = PD_UFP_Protocol_c::handler_BIST,         .responder = 0},
+    {.name = str_Sink_Cap,      .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Bat_Stat,      .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Alert,         .handler = PD_UFP_Protocol_c::handler_alert,        .responder = 0},
+    {.name = str_Get_CI,        .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Enter_USB,     .handler = 0,                                       .responder = 0},
+    {.name = str_D9,            .handler = 0,                                       .responder = 0},
+    {.name = str_D10,           .handler = 0,                                       .responder = 0},
+    {.name = str_D11,           .handler = 0,                                       .responder = 0},
+    {.name = str_D12,           .handler = 0,                                       .responder = 0},
+    {.name = str_D13,           .handler = 0,                                       .responder = 0},
+    {.name = str_D14,           .handler = 0,                                       .responder = 0},
+    {.name = str_VDM,           .handler = PD_UFP_Protocol_c::handler_vender_def,   .responder = PD_UFP_Protocol_c::responder_vender_def},
+    {.name = str_D_R,           .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
 T(E0); T(Src_Cap_Ext); T(Status); T(Get_Bat_cap); T(Get_Bat_Stat); T(Bat_Cap); T(Get_Mfg_Info); T(Mfg_Info);
 T(Sec_Request); T(Sec_Response); T(FU_request); T(FU_Response); T(PPS_Stat); T(Country_Info); T(Country_Code); T(Sink_Cap_Ext);
 T(E_R);
 
-static const struct PD_msg_state_t ext_msg_list[] PROGMEM = {
-    {.name = str_E0,            .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Src_Cap_Ext,   .handler = 0,                   .responder = 0},
-    {.name = str_Status,        .handler = 0,                   .responder = 0},
-    {.name = str_Get_Bat_cap,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Get_Bat_Stat,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Bat_Cap,       .handler = 0,                   .responder = 0},
-    {.name = str_Get_Mfg_Info,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Mfg_Info,      .handler = 0,                   .responder = 0},
-    {.name = str_Sec_Request,   .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_Sec_Response,  .handler = 0,                   .responder = 0},
-    {.name = str_FU_request,    .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-    {.name = str_FU_Response,   .handler = 0,                   .responder = 0},
-    {.name = str_PPS_Stat,      .handler = PD_UFP_Protocol_c::handler_PPS_Status,  .responder = 0},
-    {.name = str_Country_Info,  .handler = 0,                   .responder = 0},
-    {.name = str_Country_Code,  .handler = 0,                   .responder = 0},
-    {.name = str_Sink_Cap_Ext,  .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
-
-    {.name = str_E_R,           .handler = 0,                   .responder = PD_UFP_Protocol_c::responder_not_support},
+const PD_msg_state_t PD_UFP_Protocol_c::ext_msg_list[] PROGMEM = {
+    {.name = str_E0,            .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Src_Cap_Ext,   .handler = 0,                                       .responder = 0},
+    {.name = str_Status,        .handler = 0,                                       .responder = 0},
+    {.name = str_Get_Bat_cap,   .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Get_Bat_Stat,  .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Bat_Cap,       .handler = 0,                                       .responder = 0},
+    {.name = str_Get_Mfg_Info,  .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Mfg_Info,      .handler = 0,                                       .responder = 0},
+    {.name = str_Sec_Request,   .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_Sec_Response,  .handler = 0,                                       .responder = 0},
+    {.name = str_FU_request,    .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_FU_Response,   .handler = 0,                                       .responder = 0},
+    {.name = str_PPS_Stat,      .handler = PD_UFP_Protocol_c::handler_PPS_Status,   .responder = 0},
+    {.name = str_Country_Info,  .handler = 0,                                       .responder = 0},
+    {.name = str_Country_Code,  .handler = 0,                                       .responder = 0},
+    {.name = str_Sink_Cap_Ext,  .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
+    {.name = str_E_R,           .handler = 0,                                       .responder = PD_UFP_Protocol_c::responder_not_support},
 };
 
-static const PD_power_option_setting_t power_option_setting[8] = {
+const PD_power_option_setting_t PD_UFP_Protocol_c::power_option_setting[8] = {
     {.limit = 25,   .use_voltage = 1, .use_current = 0},    /* PD_POWER_OPTION_MAX_5V */
     {.limit = 45,   .use_voltage = 1, .use_current = 0},    /* PD_POWER_OPTION_MAX_9V */
     {.limit = 60,   .use_voltage = 1, .use_current = 0},    /* PD_POWER_OPTION_MAX_12V */
@@ -429,7 +435,7 @@ void PD_UFP_Protocol_c::handle_msg(uint16_t header, uint32_t * obj, event_t * ev
     #define DATA_MSG_LIMIT  (sizeof(data_msg_list) / sizeof(data_msg_list[0]) - 1)
     #define CTRL_MSG_LIMIT  (sizeof(ctrl_msg_list) / sizeof(ctrl_msg_list[0]) - 1)
 
-    const struct PD_msg_state_t * state;
+    const PD_msg_state_t * state;
     PD_msg_header_info_t h;
     this->parse_header(&h, header);
     this->rx_msg_header = header;
@@ -525,7 +531,7 @@ bool PD_UFP_Protocol_c::get_msg_info(uint16_t header, PD_msg_info_t * msg_info)
     if (msg_info)
     {
         const char * name;
-        const struct PD_msg_state_t * state;
+        const PD_msg_state_t * state;
         uint8_t type = h.type;
         SET_MSG_STAGE(state, header & 0x8000 ? &ext_msg_list[type] :
                         h.num_of_obj ? &data_msg_list[type] : &ctrl_msg_list[type]);

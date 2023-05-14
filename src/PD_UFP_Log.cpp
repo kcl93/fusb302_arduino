@@ -39,12 +39,12 @@ enum {
 #define STATUS_LOG_OBJ_MASK     (sizeof(status_log_obj) / sizeof(status_log_obj[0]) - 1)
 
 PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
-    status_log_write(0),
     status_log_read(0),
-    status_log_counter(0),
+    status_log_write(0),
     status_log_obj_read(0),
     status_log_obj_write(0),
-    status_log_level(log_level)
+    status_log_level(log_level),
+    status_log_counter(0)
 {
 
 }

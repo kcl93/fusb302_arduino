@@ -81,7 +81,8 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
     }
 
     // Two stage startup for PPS Voltge < 5V
-    if (PPS_voltage && PPS_voltage < 5000) {
+    if (PPS_voltage && PPS_voltage < 5000)
+    {
         PPS_voltage_next = PPS_voltage;
         PPS_current_next = PPS_current;
         PPS_voltage = 5000;
@@ -97,7 +98,8 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
 
 void PD_UFP_c::run(void)
 {
-    if (timer() || digitalRead(int_pin) == 0) {
+    if (timer() || digitalRead(int_pin) == 0)
+    {
         FUSB302_event_t FUSB302_events = 0;
         for (uint8_t i = 0; i < 3 && FUSB302_alert(&FUSB302, &FUSB302_events) != FUSB302_SUCCESS; i++) {}
         if (FUSB302_events) {
@@ -108,7 +110,8 @@ void PD_UFP_c::run(void)
 
 bool PD_UFP_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current)
 {
-    if (status_power == STATUS_POWER_PPS && this->protocol.set_PPS(PPS_voltage, PPS_current, true)) {
+    if (status_power == STATUS_POWER_PPS && this->protocol.set_PPS(PPS_voltage, PPS_current, true))
+    {
         send_request = 1;
         return true;
     }
@@ -117,14 +120,16 @@ bool PD_UFP_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current)
 
 void PD_UFP_c::set_power_option(enum PD_power_option_t power_option)
 {
-    if (this->protocol.set_power_option(power_option)) {
+    if (this->protocol.set_power_option(power_option))
+    {
         send_request = 1;
     }
 }
 
 void PD_UFP_c::clock_prescale_set(uint8_t prescaler)
 {
-    if (prescaler) {
+    if (prescaler > 0)
+    {
         clock_prescaler = prescaler;
     }
 }
@@ -135,7 +140,8 @@ FUSB302_ret_t PD_UFP_c::FUSB302_i2c_read(uint8_t dev_addr, uint8_t reg_addr, uin
     Wire.write(reg_addr);
     Wire.endTransmission();
     Wire.requestFrom(dev_addr, count);
-    while (Wire.available() && count > 0) {
+    while (Wire.available() && count > 0)
+    {
         *data++ = Wire.read();
         count--;
     }
@@ -146,7 +152,8 @@ FUSB302_ret_t PD_UFP_c::FUSB302_i2c_write(uint8_t dev_addr, uint8_t reg_addr, ui
 {
     Wire.beginTransmission(dev_addr);
     Wire.write(reg_addr);
-    while (count > 0) {
+    while (count > 0)
+    {
         Wire.write(*data++);
         count--;
     }
@@ -162,20 +169,24 @@ FUSB302_ret_t PD_UFP_c::FUSB302_delay_ms(uint32_t t)
 
 void PD_UFP_c::handle_protocol_event(event_t events)
 {    
-    if (events & PD_PROTOCOL_EVENT_SRC_CAP) {
+    if (events & PD_PROTOCOL_EVENT_SRC_CAP)
+    {
         wait_src_cap = 0;
         get_src_cap_retry_count = 0;
         wait_ps_rdy = 1;
         time_wait_ps_rdy = clock_ms();
         status_log_event(STATUS_LOG_SRC_CAP);
     }
-    if (events & PD_PROTOCOL_EVENT_REJECT) {
-        if (wait_ps_rdy) {
+    if (events & PD_PROTOCOL_EVENT_REJECT)
+    {
+        if (wait_ps_rdy)
+        {
             wait_ps_rdy = 0;
             status_log_event(STATUS_LOG_POWER_REJECT);
         }
     }    
-    if (events & PD_PROTOCOL_EVENT_PS_RDY) {
+    if (events & PD_PROTOCOL_EVENT_PS_RDY)
+    {
         PD_power_info_t p;
         uint8_t selected_power = this->protocol.get_selected_power();
         this->protocol.get_power_info(selected_power, &p);

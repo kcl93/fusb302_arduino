@@ -88,14 +88,9 @@ typedef struct {
     uint16_t max_p;     /* Power in 250mW units */
 } PD_power_info_t;
 
-typedef struct {
-    uint8_t type;
-    uint8_t spec_rev;
-    uint8_t id;
-    uint8_t num_of_obj;
-} PD_msg_header_info_t;
-
-struct PD_msg_state_t;
+typedef struct PD_msg_header_info PD_msg_header_info_t;
+typedef struct PD_power_option_setting PD_power_option_setting_t;
+typedef struct PD_msg_state PD_msg_state_t;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,6 +136,33 @@ class PD_UFP_Protocol_c
         void reset();
         void init();
         
+    protected:
+        const PD_msg_state_t *msg_state;
+        uint16_t tx_msg_header;
+        uint16_t rx_msg_header;
+        uint8_t message_id;
+
+        uint16_t PPS_voltage;
+        uint8_t PPS_current;
+        uint8_t PPSSDB[4];  /* PPS Status Data Block */
+
+        enum PD_power_option_t power_option;
+        uint32_t power_data_obj[PD_PROTOCOL_MAX_NUM_OF_PDO];
+        uint8_t power_data_obj_count;
+        uint8_t power_data_obj_selected;
+
+        static const PD_msg_state_t data_msg_list[];
+        static const PD_msg_state_t ctrl_msg_list[];
+        static const PD_msg_state_t ext_msg_list[];
+        static const PD_power_option_setting_t power_option_setting[8];
+
+        void parse_header(PD_msg_header_info_t *info, uint16_t header);
+
+        uint16_t generate_header(uint8_t type, uint8_t obj_count);
+        uint16_t generate_header_ext(uint8_t type, uint8_t data_size, uint32_t * obj);
+
+        uint8_t evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_current);
+        
         static void handler_good_crc   (PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events);
         static void handler_goto_min   (PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events);
         static void handler_accept     (PD_UFP_Protocol_c *p, uint16_t header, uint32_t * obj, event_t * events);
@@ -159,28 +181,6 @@ class PD_UFP_Protocol_c
         static bool responder_vender_def    (PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj);
         static bool responder_sink_cap_ext  (PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj);
         static bool responder_not_support   (PD_UFP_Protocol_c *p, uint16_t * header, uint32_t * obj);
-        
-    protected:
-        const struct PD_msg_state_t *msg_state;
-        uint16_t tx_msg_header;
-        uint16_t rx_msg_header;
-        uint8_t message_id;
-
-        uint16_t PPS_voltage;
-        uint8_t PPS_current;
-        uint8_t PPSSDB[4];  /* PPS Status Data Block */
-
-        enum PD_power_option_t power_option;
-        uint32_t power_data_obj[PD_PROTOCOL_MAX_NUM_OF_PDO];
-        uint8_t power_data_obj_count;
-        uint8_t power_data_obj_selected;
-
-        void parse_header(PD_msg_header_info_t *info, uint16_t header);
-
-        uint16_t generate_header(uint8_t type, uint8_t obj_count);
-        uint16_t generate_header_ext(uint8_t type, uint8_t data_size, uint32_t * obj);
-
-        uint8_t evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_current);
 };
 
 
