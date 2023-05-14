@@ -16,9 +16,8 @@
 #ifndef PD_UFP_H
 #define PD_UFP_H
 
-#include <stdint.h>
-
-#include <HardwareSerial.h>
+#include <Arduino.h>
+#include <Wire.h>
 
 #include "FUSB302_UFP.h"
 #include "PD_UFP_Protocol.h"
@@ -37,7 +36,7 @@ class PD_UFP_c
 {
     public:
         // Constructor
-        PD_UFP_c();
+        PD_UFP_c(TwoWire &twoWire);
         // Init
         void init(uint8_t int_pin, enum PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
         // PPS init with voltage in mV and current in mA
@@ -58,8 +57,6 @@ class PD_UFP_c
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current);
         // Update the target power option
         void set_power_option(enum PD_power_option_t power_option);
-        // Clock
-        static void clock_prescale_set(uint8_t prescaler);
 
     protected:
         void handle_protocol_event(event_t events);
@@ -114,7 +111,7 @@ enum pd_log_level_t {
 class PD_UFP_Log_c : public PD_UFP_c
 {
     public:
-        PD_UFP_Log_c(pd_log_level_t log_level = PD_LOG_LEVEL_INFO);
+        PD_UFP_Log_c(TwoWire &twoWire, pd_log_level_t log_level = PD_LOG_LEVEL_INFO);
         // Task
         //void print_status(Serial_ & serial);
         void print_status(HardwareSerial & serial);

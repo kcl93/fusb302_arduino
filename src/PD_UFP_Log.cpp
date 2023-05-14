@@ -39,7 +39,8 @@ enum {
 #define STATUS_LOG_MASK         (sizeof(status_log) / sizeof(status_log[0]) - 1)
 #define STATUS_LOG_OBJ_MASK     (sizeof(status_log_obj) / sizeof(status_log_obj[0]) - 1)
 
-PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
+PD_UFP_Log_c::PD_UFP_Log_c(TwoWire &twoWire, pd_log_level_t log_level):
+    PD_UFP_c(twoWire),
     status_log_read(0),
     status_log_write(0),
     status_log_obj_read(0),
@@ -52,11 +53,13 @@ PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
 
 uint8_t PD_UFP_Log_c::status_log_obj_add(uint16_t header, uint32_t * obj)
 {
-    if (obj) {
+    if (obj != NULL)
+    {
         uint8_t i, w = status_log_obj_write, r = status_log_obj_read;
         PD_msg_info_t info;
         this->protocol.get_msg_info(header, &info);
-        for (i = 0; i < info.num_of_obj && (uint8_t)(w - r) < STATUS_LOG_OBJ_MASK; i++) {
+        for (i = 0; i < info.num_of_obj && (uint8_t)(w - r) < STATUS_LOG_OBJ_MASK; i++)
+        {
             status_log_obj[w++ & STATUS_LOG_OBJ_MASK] = obj[i];
         }
         status_log_obj_write = w;
@@ -67,21 +70,23 @@ uint8_t PD_UFP_Log_c::status_log_obj_add(uint16_t header, uint32_t * obj)
 
 void PD_UFP_Log_c::status_log_event(uint8_t status, uint32_t * obj)
 {
-    if (((status_log_write - status_log_read) & STATUS_LOG_MASK) >= STATUS_LOG_MASK) {
+    if (((status_log_write - status_log_read) & STATUS_LOG_MASK) >= STATUS_LOG_MASK)
+    {
         return;
     }
     status_log_t * log = &status_log[status_log_write & STATUS_LOG_MASK];
-    switch (status) {
-    case STATUS_LOG_MSG_TX:
-        log->msg_header = this->protocol.get_tx_msg_header();
-        log->obj_count = status_log_obj_add(log->msg_header, obj);
-        break;
-    case STATUS_LOG_MSG_RX:
-        log->msg_header = this->protocol.get_rx_msg_header();
-        log->obj_count = status_log_obj_add(log->msg_header, obj);
-        break;
-    default:
-        break;
+    switch (status)
+    {
+        case STATUS_LOG_MSG_TX:
+            log->msg_header = this->protocol.get_tx_msg_header();
+            log->obj_count = this->status_log_obj_add(log->msg_header, obj);
+            break;
+        case STATUS_LOG_MSG_RX:
+            log->msg_header = this->protocol.get_rx_msg_header();
+            log->obj_count = this->status_log_obj_add(log->msg_header, obj);
+            break;
+        default:
+            break;
     }
     log->status = status;
     log->time = millis();
@@ -103,26 +108,34 @@ int PD_UFP_Log_c::status_log_readline_msg(char * buffer, int maxlen, status_log_
 {
     char * t = status_log_time;
     int n = 0;
-    if (status_log_counter == 0) {
+    if (status_log_counter == 0)
+    {
         // output message header
         char type = log->status == STATUS_LOG_MSG_TX ? 'T' : 'R';
         PD_msg_info_t info;
         this->protocol.get_msg_info(log->msg_header, &info);
-        if (status_log_level >= PD_LOG_LEVEL_VERBOSE) {
+        if (status_log_level >= PD_LOG_LEVEL_VERBOSE)
+        {
             const char * ext = info.extended ? "ext, " : "";
             LOG("%s%cX %s id=%d %sraw=0x%04X\n", t, type, info.name, info.id, ext, log->msg_header);
-            if (info.num_of_obj) {
+            if (info.num_of_obj > 0)
+            {
                 status_log_counter++;
             }
-        } else {
+        }
+        else
+        {
             LOG("%s%cX %s\n", t, type, info.name);
         }
-    } else {
+    }
+    else
+    {
         // output object data
         int i = status_log_counter - 1;
         uint32_t obj = status_log_obj[status_log_obj_read++ & STATUS_LOG_OBJ_MASK];
         LOG("%s obj%d=0x%08lX\n", t, i, obj);
-        if (++status_log_counter > log->obj_count) {
+        if (++status_log_counter > log->obj_count)
+        {
             status_log_counter = 0;
         }
     }
@@ -134,21 +147,27 @@ int PD_UFP_Log_c::status_log_readline_src_cap(char * buffer, int maxlen)
     PD_power_info_t p;
     int n = 0;
     uint8_t i = status_log_counter;
-    if (this->protocol.get_power_info(i, &p)) {
+    if (this->protocol.get_power_info(i, &p) == true)
+    {
         const char * str_pps[] = {"", " BAT", " VAR", " PPS"};  /* PD_power_data_obj_type_t */
         char * t = status_log_time;
         uint8_t selected = this->protocol.get_selected_power();
         char min_v[8] = {0}, max_v[8] = {0}, power[8] = {0};
         if (p.min_v) SNPRINTF(min_v, sizeof(min_v)-1, PSTR("%d.%02dV-"), p.min_v / 20, (p.min_v * 5) % 100);
         if (p.max_v) SNPRINTF(max_v, sizeof(max_v)-1, PSTR("%d.%02dV"), p.max_v / 20, (p.max_v * 5) % 100);
-        if (p.max_i) {
+        if (p.max_i)
+        {
             SNPRINTF(power, sizeof(power)-1, PSTR("%d.%02dA"), p.max_i / 100, p.max_i % 100);
-        } else {
+        }
+        else
+        {
             SNPRINTF(power, sizeof(power)-1, PSTR("%d.%02dW"), p.max_p / 4, p.max_p * 25);
         }
         LOG("%s   [%d] %s%s %s%s%s\n", t, i, min_v, max_v, power, str_pps[p.type], i == selected ? " *" : "");
         status_log_counter++;
-    } else {
+    }
+    else
+    {
         status_log_counter = 0;
     }
     return n;
@@ -156,14 +175,16 @@ int PD_UFP_Log_c::status_log_readline_src_cap(char * buffer, int maxlen)
 
 int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
 {
-    if (status_log_write == status_log_read) {
+    if (status_log_write == status_log_read)
+    {
         return 0;
     }
     
     status_log_t * log = &status_log[status_log_read & STATUS_LOG_MASK];
     int n = 0;
     char * t = status_log_time;
-    if (t[0] == 0) {    // Convert timestamp number to string
+    if (t[0] == 0)
+    {    // Convert timestamp number to string
         SNPRINTF(t, sizeof(status_log_time)-1, PSTR("%04u: "), log->time);
         return 0; 
     }
@@ -172,7 +193,7 @@ int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
     {
         case STATUS_LOG_MSG_TX:
         case STATUS_LOG_MSG_RX:
-            n = status_log_readline_msg(buffer, maxlen, log);
+            n = this->status_log_readline_msg(buffer, maxlen, log);
             break;
 
         case STATUS_LOG_DEV:
@@ -211,15 +232,18 @@ int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
             break; }
 
         case STATUS_LOG_SRC_CAP:
-            n = status_log_readline_src_cap(buffer, maxlen);
+            n = this->status_log_readline_src_cap(buffer, maxlen);
             break;
 
         case STATUS_LOG_POWER_READY: {
             uint16_t v = ready_voltage;
             uint16_t a = ready_current;
-            if (status_power == STATUS_POWER_TYP) {
+            if (status_power == STATUS_POWER_TYP)
+            {
                 LOG("%s%d.%02dV %d.%02dA supply ready\n", t, v / 20, (v * 5) % 100, a / 100, a % 100);
-            } else if (status_power == STATUS_POWER_PPS) {
+            }
+            else if (status_power == STATUS_POWER_PPS)
+            {
                 LOG("%sPPS %d.%02dV %d.%02dA supply ready\n", t, v / 50, (v * 2) % 100, a / 20, (a * 5) % 100);
             }
             break; }
@@ -252,9 +276,11 @@ int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
 void PD_UFP_Log_c::print_status(HardwareSerial & serial)
 {
     // Wait for enough tx buffer in serial port to avoid blocking
-    if (serial && serial.availableForWrite() >= SERIAL_TX_BUFFER_SIZE - 1) {
+    if (serial && (serial.availableForWrite() >= SERIAL_TX_BUFFER_SIZE - 1))
+    {
         char buf[SERIAL_TX_BUFFER_SIZE];
-        if (status_log_readline(buf, sizeof(buf) - 1)) {
+        if (this->status_log_readline(buf, sizeof(buf) - 1))
+        {
             serial.print(buf);
         }
     }

@@ -3,7 +3,7 @@
 
 #define FUSB302_INT_PIN   12
 
-PD_UFP_Log_c PD_UFP;
+PD_UFP_Log_c PD_UFP(Wire);
 
 void setup() {
   Wire.begin();

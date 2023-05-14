@@ -598,13 +598,13 @@ bool PD_UFP_Protocol_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool 
     return false;
 }
 
-void PD_UFP_Protocol_c::reset()
+void PD_UFP_Protocol_c::reset(void)
 {
     this->msg_state = &ctrl_msg_list[0];
     this->message_id = 0;
 }
 
-void PD_UFP_Protocol_c::init()
+void PD_UFP_Protocol_c::init(void)
 {
     memset(this, 0, sizeof(PD_UFP_Protocol_c));
     this->msg_state = &ctrl_msg_list[0];

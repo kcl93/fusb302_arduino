@@ -18,6 +18,7 @@
 #ifndef FUSB302_UFP_H
 #define FUSB302_UFP_H
 
+#include <Wire.h>
 #include <stdint.h>
 
 enum {
@@ -39,7 +40,7 @@ typedef uint8_t FUSB302_event_t;
 class FUSB302_dev_c
 {
     public:
-        FUSB302_dev_c();
+        FUSB302_dev_c(TwoWire &twoWire);
 
         const char * get_last_err_msg() { return this->err_msg; }
 
@@ -60,6 +61,7 @@ class FUSB302_dev_c
 
     protected:
         /* used by this library */
+        TwoWire twoWire;
         const char * err_msg;
         uint16_t rx_header;
         uint8_t rx_buffer[32];

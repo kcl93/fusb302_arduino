@@ -28,7 +28,6 @@ get_current	KEYWORD2
 get_ps_status	KEYWORD2
 set_PPS	KEYWORD2
 set_power_option	KEYWORD2
-clock_prescale_set	KEYWORD2
 print_status	KEYWORD2
 status_log_readline	KEYWORD2
 

@@ -43,7 +43,8 @@ enum {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PD_UFP_c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-PD_UFP_c::PD_UFP_c():
+PD_UFP_c::PD_UFP_c(TwoWire &twoWire):
+    FUSB302(twoWire),
     ready_voltage(0),
     ready_current(0),
     PPS_voltage_next(0),
@@ -73,13 +74,13 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
     this->int_pin = int_pin;
     // Initialize FUSB302
     pinMode(int_pin, INPUT_PULLUP); // Set FUSB302 int pin input ant pull up
-    if (this->FUSB302.init() == FUSB302_SUCCESS && this->FUSB302.get_ID(0, 0) == FUSB302_SUCCESS)
+    if ((this->FUSB302.init() == FUSB302_SUCCESS) && (this->FUSB302.get_ID(0, 0) == FUSB302_SUCCESS))
     {
         status_initialized = 1;
     }
 
     // Two stage startup for PPS Voltge < 5V
-    if (PPS_voltage && PPS_voltage < 5000)
+    if ((PPS_voltage > 0) && (PPS_voltage < 5000))
     {
         PPS_voltage_next = PPS_voltage;
         PPS_current_next = PPS_current;
@@ -91,7 +92,7 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
     this->protocol.set_power_option(power_option);
     this->protocol.set_PPS(PPS_voltage, PPS_current, false);
 
-    status_log_event(STATUS_LOG_DEV);
+    this->status_log_event(STATUS_LOG_DEV);
 }
 
 void PD_UFP_c::run(void)

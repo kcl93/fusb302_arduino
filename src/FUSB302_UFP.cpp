@@ -14,7 +14,7 @@
  * - VBUS sense low threshold at 4V, disable vbus_sense if request PPS below 4V
  * 
  */
- 
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <string.h>
@@ -248,10 +248,38 @@ enum FUSB302_state_t {
     if (reg_write(addr, data, count) != FUSB302_SUCCESS) { return FUSB302_ERR_WRITE_DEVICE; } \
 } while(0)
 
-FUSB302_dev_c::FUSB302_dev_c():
-    i2c_address(0x22)
+FUSB302_dev_c::FUSB302_dev_c(TwoWire &twoWire):
+    i2c_address(0x22),
+    twoWire(twoWire)
 {
 
+}
+
+FUSB302_ret_t FUSB302_dev_c::i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
+{
+    this->twoWire.beginTransmission(dev_addr);
+    this->twoWire.write(reg_addr);
+    this->twoWire.endTransmission();
+    this->twoWire.requestFrom(dev_addr, count);
+    while (this->twoWire.available() && count > 0)
+    {
+        *data++ = this->twoWire.read();
+        count--;
+    }
+    return count == 0 ? FUSB302_SUCCESS : FUSB302_ERR_READ_DEVICE;
+}
+
+FUSB302_ret_t FUSB302_dev_c::i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
+{
+    this->twoWire.beginTransmission(dev_addr);
+    this->twoWire.write(reg_addr);
+    while (count > 0)
+    {
+        this->twoWire.write(*data++);
+        count--;
+    }
+    this->twoWire.endTransmission();
+    return FUSB302_SUCCESS;
 }
 
 FUSB302_ret_t FUSB302_dev_c::reg_read(uint8_t address, uint8_t *data, uint8_t count)
@@ -621,33 +649,5 @@ FUSB302_ret_t FUSB302_dev_c::alert(FUSB302_event_t * events)
             break;
     }
     this->state = FUSB302_STATE_UNATTACHED;
-    return FUSB302_SUCCESS;
-}
-
-
-FUSB302_ret_t FUSB302_dev_c::i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
-{
-    Wire.beginTransmission(dev_addr);
-    Wire.write(reg_addr);
-    Wire.endTransmission();
-    Wire.requestFrom(dev_addr, count);
-    while (Wire.available() && count > 0)
-    {
-        *data++ = Wire.read();
-        count--;
-    }
-    return count == 0 ? FUSB302_SUCCESS : FUSB302_ERR_READ_DEVICE;
-}
-
-FUSB302_ret_t FUSB302_dev_c::i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
-{
-    Wire.beginTransmission(dev_addr);
-    Wire.write(reg_addr);
-    while (count > 0)
-    {
-        Wire.write(*data++);
-        count--;
-    }
-    Wire.endTransmission();
     return FUSB302_SUCCESS;
 }

@@ -100,7 +100,7 @@ class PD_UFP_Protocol_c
 {
     public:
         // Constructor
-        PD_UFP_Protocol_c() { init(); }
+        PD_UFP_Protocol_c(void) { init(); }
         
         /* Message handler */
         void handle_msg(uint16_t header, uint32_t *obj, event_t *events);
@@ -133,8 +133,8 @@ class PD_UFP_Protocol_c
            strict=false, if PPS setting is not qualified, fall back to regular power option */
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool strict);  
 
-        void reset();
-        void init();
+        void reset(void);
+        void init(void);
         
     protected:
         const PD_msg_state_t *msg_state;
