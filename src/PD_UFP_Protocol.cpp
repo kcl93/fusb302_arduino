@@ -584,6 +584,8 @@ bool PD_UFP_Protocol_c::select_power(uint8_t index)
 
 bool PD_UFP_Protocol_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool strict)
 {
+    PPS_voltage = PPS_voltage / 20;
+    PPS_current = PPS_current / 50;
     if (this->PPS_voltage != PPS_voltage || this->PPS_current != PPS_current)
     {
         uint8_t selected = this->evaluate_src_cap(PPS_voltage, PPS_current);

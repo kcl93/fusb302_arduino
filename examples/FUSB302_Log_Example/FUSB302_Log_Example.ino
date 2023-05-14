@@ -7,7 +7,7 @@ PD_UFP_Log_c PD_UFP(Wire);
 
 void setup() {
   Wire.begin();
-  PD_UFP.init_PPS(FUSB302_INT_PIN, PPS_V(8.4), PPS_A(2.0));
+  PD_UFP.init_PPS(FUSB302_INT_PIN, 8400, 2000);
   
   Serial.begin(9600);
 }

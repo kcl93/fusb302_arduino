@@ -7,23 +7,25 @@ PD_UFP_c PD_UFP(Wire);
 
 void setup() {
   Wire.begin();
-  PD_UFP.init_PPS(FUSB302_INT_PIN, PPS_V(8.4), PPS_A(2.0));
+  PD_UFP.init_PPS(FUSB302_INT_PIN, 8400, 2000);
   
   Serial.begin(9600);
 }
 
 void loop() {
   PD_UFP.run();
-  if (PD_UFP.is_PPS_ready())
+  switch(PD_UFP.get_ps_status())
   {
-    Serial.write("PPS trigger succcess\n");
-  }
-  else if (PD_UFP.is_power_ready())
-  {
-    Serial.write("Fail to trigger PPS\n");
-  }
-  else
-  {
-    Serial.write("No PD supply available\n");
+    case STATUS_POWER_PPS:
+      Serial.write("PPS trigger succcess\n");
+      break;
+      
+    case STATUS_POWER_TYP:
+      Serial.write("Fail to trigger PPS\n");
+      break;
+      
+    default:
+      Serial.write("No PD supply available\n");
+      break;
   }
 }
