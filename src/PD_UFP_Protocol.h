@@ -35,7 +35,12 @@
 
 typedef uint8_t event_t;
 
-enum PD_power_option_t {
+/**
+ * @brief PD power options for normal and PPS mode
+ * 
+ */
+typedef enum : uint8_t
+{
     PD_POWER_OPTION_MAX_5V      = 0,
     PD_POWER_OPTION_MAX_9V      = 1,
     PD_POWER_OPTION_MAX_12V     = 2,
@@ -44,35 +49,40 @@ enum PD_power_option_t {
     PD_POWER_OPTION_MAX_VOLTAGE = 5,
     PD_POWER_OPTION_MAX_CURRENT = 6,
     PD_POWER_OPTION_MAX_POWER   = 7,
-};
+} PD_power_option_t;
 
-enum PD_power_data_obj_type_t {   /* Power data object type */
+typedef enum : uint8_t
+{   /* Power data object type */
     PD_PDO_TYPE_FIXED_SUPPLY    = 0,
     PD_PDO_TYPE_BATTERY         = 1,
     PD_PDO_TYPE_VARIABLE_SUPPLY = 2,
     PD_PDO_TYPE_AUGMENTED_PDO   = 3     /* USB PD 3.0 */
-};
+} PD_power_data_obj_type_t;
 
-enum PPS_PTF_t {
+typedef enum : uint8_t
+{
     PPS_PTF_NOT_SUPPORT         = 0,
     PPS_PTF_NORMAL              = 1,
     PPS_PTF_WARNING             = 2,
     PPS_PTF_OVER_TEMPERATURE    = 3
-};
+} PPS_PTF_t;
 
-enum PPS_OMF_t {
+typedef enum : uint8_t
+{
     PPS_OMF_VOLTAGE_MODE        = 0,
     PPS_OMF_CURRENT_LIMIT_MODE  = 1
-};
+} PPS_OMF_t;
 
-typedef struct {
+typedef struct
+{
     uint16_t output_voltage;    /* Voltage in 20mV units, 0xFFFF if not supported */
     uint8_t output_current;     /* Current in 50mV units, 0xFF if not supported */
-    enum PPS_PTF_t flag_PTF;
-    enum PPS_OMF_t flag_OMF;
+    PPS_PTF_t flag_PTF;
+    PPS_OMF_t flag_OMF;
 } PPS_status_t;
 
-typedef struct {
+typedef struct
+{
     const char * name;
     uint8_t id;
     uint8_t spec_rev;
@@ -80,15 +90,17 @@ typedef struct {
     uint8_t extended;
 } PD_msg_info_t;
 
-typedef struct {
-    enum PD_power_data_obj_type_t type;
+typedef struct
+{
+    PD_power_data_obj_type_t type;
     uint16_t min_v;     /* Voltage in 50mV units */
     uint16_t max_v;     /* Voltage in 50mV units */
     uint16_t max_i;     /* Current in 10mA units */
     uint16_t max_p;     /* Power in 250mW units */
 } PD_power_info_t;
 
-enum {
+enum : uint8_t
+{
     STATUS_POWER_NA = 0,
     STATUS_POWER_TYP,
     STATUS_POWER_PPS
@@ -132,7 +144,7 @@ class PD_UFP_Protocol_c
         bool get_PPS_status(PPS_status_t * PPS_status);
 
         /* Set Fixed and Variable power option */
-        bool set_power_option(enum PD_power_option_t option);
+        bool set_power_option(PD_power_option_t option);
         bool select_power(uint8_t index);
 
         /* Set PPS Voltage in mV, Current in mA. return true if re-send request is needed
@@ -153,7 +165,7 @@ class PD_UFP_Protocol_c
         uint8_t PPS_current; // in 50mA steps
         uint8_t PPSSDB[4];  /* PPS Status Data Block */
 
-        enum PD_power_option_t power_option;
+        PD_power_option_t power_option;
         uint32_t power_data_obj[PD_PROTOCOL_MAX_NUM_OF_PDO];
         uint8_t power_data_obj_count;
         uint8_t power_data_obj_selected;

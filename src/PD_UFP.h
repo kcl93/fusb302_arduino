@@ -22,34 +22,92 @@
 #include "FUSB302_UFP.h"
 #include "PD_UFP_Protocol.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// PD_UFP_c
-///////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Main class for user interaction to control a PD compliant USB-C power supply
+ * 
+ */
 class PD_UFP_c
 {
     public:
-        // Constructor
+        /**
+         * @brief Construct a new pd ufp c object
+         * 
+         * @param twoWire TwoWire (I2c) that the FUSB302 is connected to
+         */
         PD_UFP_c(TwoWire &twoWire);
-        // Init
-        void init(uint8_t int_pin, enum PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
-        // PPS init with voltage in mV and current in mA
-        void init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_current, enum PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
-        // Handles any upcoming PD related communication
-        void run(void);
-        // Returns if the power supply is currently transitioning from one state to another
+
+        /**
+         * @brief Initializes the class for operation in normal, non PPS mode
+         * 
+         * @param int_pin       Pin number where the INT signal of the FUSB302 is connected to
+         * @param power_option  Target power option (default = 5V)
+         */
+        void init(uint8_t int_pin, PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
+
+        /**
+         * @brief Initializes the class for operation in PPS mode
+         * 
+         * @param int_pin       Pin number where the INT signal of the FUSB302 is connected to
+         * @param PPS_voltage   Target PPS voltage in mV
+         * @param PPS_current   Target PPS current in mA
+         * @param power_option  Target power option (default = 5V)
+         */
+        void init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_current, PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
+
+        /**
+         * @brief Handles any upcoming PD related communication
+         */
+        void handle(void);
+
+        /**
+         * @brief Is the power supply is currently transitioning from one state to another?
+         * 
+         * @return True or false
+         */
         bool is_ps_transition(void) { return send_request || wait_ps_rdy; }
-        // Returns the current set voltage in mV
+
+        /**
+         * @brief Returns the currently set voltage
+         * 
+         * @return Voltage in mV 
+         */
         uint16_t get_voltage(void) { return ready_voltage; }
-        // Returns the current set current in mA
+        /**
+         * @brief Returns the currently set current
+         * 
+         * @return Current in mA 
+         */
         uint16_t get_current(void) { return ready_current; }
-        // Returns the current set power in mW
+
+        /**
+         * @brief Returns the currently maximum available power
+         * 
+         * @return Power in mW 
+         */
         uint32_t get_power(void) { return (uint32_t)ready_voltage * (uint32_t)ready_current; }
-        // Returns the current state of the power supply
+        
+        /**
+         * @brief Returns the current state of the power supply
+         * 
+         * @return Power supply state 
+         */
         status_power_t get_ps_status(void) { return status_power; }
-        // Update target PPS values for voltage (mV) and current (mA)
+
+        /**
+         * @brief Updates the target PPS values for voltage and current
+         * 
+         * @param PPS_voltage   Voltage in mV
+         * @param PPS_current   Current in mA
+         * @return              True if successful, else false
+         */
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current);
-        // Update the target power option
-        void set_power_option(enum PD_power_option_t power_option);
+        
+        /**
+         * @brief Updates the target power option
+         * 
+         * @param power_option Target power option
+         */
+        void set_power_option(PD_power_option_t power_option);
 
     protected:
         void handle_protocol_event(event_t events);

@@ -19,7 +19,7 @@ status_power_t	KEYWORD1
 
 init	KEYWORD2
 init_PPS	KEYWORD2
-run	KEYWORD2
+handle	KEYWORD2
 is_power_ready	KEYWORD2
 is_PPS_ready	KEYWORD2
 is_ps_transition	KEYWORD2

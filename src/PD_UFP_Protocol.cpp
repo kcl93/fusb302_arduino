@@ -166,17 +166,16 @@ uint8_t PD_UFP_Protocol_c::evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_cu
 {
     const PD_power_option_setting_t * setting;
     PD_power_info_t info;
-    uint8_t option = this->power_option;
     uint8_t selected = 0;
 
     /* If selected option is not available, use first PDO. Reference: 6.4.1 Capabilities Message
        The vSafe5V Fixed Supply Object Shall always be the first object. */
-    if (option >= sizeof(power_option_setting) / sizeof(power_option_setting[0]))
+    if (this->power_option >= (sizeof(power_option_setting) / sizeof(power_option_setting[0])))
     {
         return 0;
     }
 
-    setting = &power_option_setting[option];
+    setting = &power_option_setting[this->power_option];
     for (uint8_t n = 0; this->get_power_info(n, &info); n++)
     {
         if (info.type == PD_PDO_TYPE_AUGMENTED_PDO)
@@ -184,7 +183,7 @@ uint8_t PD_UFP_Protocol_c::evaluate_src_cap(uint16_t PPS_voltage, uint8_t PPS_cu
             uint16_t pps_v = PPS_voltage * 2;    /* Voltage in 20mV units */
             uint16_t pps_i = PPS_current * 5;    /* Current in 50mA units */
             /* PD_power_info_t: Voltage in 50mV units, Current in 10mA units */
-            if (info.min_v * 5 <= pps_v && pps_v <= info.max_v * 5 && pps_i <= info.max_i)
+            if (((info.min_v * 5) <= pps_v) && (pps_v <= (info.max_v * 5)) && (pps_i <= info.max_i))
             {
                 return n;
             }
@@ -560,7 +559,7 @@ bool PD_UFP_Protocol_c::get_PPS_status(PPS_status_t * PPS_status)
     return false;
 }
 
-bool PD_UFP_Protocol_c::set_power_option(enum PD_power_option_t option)
+bool PD_UFP_Protocol_c::set_power_option(PD_power_option_t option)
 {
     this->power_option = option;
     this->PPS_voltage = 0;

@@ -13,7 +13,7 @@ void setup() {
 }
 
 void loop() {
-  PD_UFP.run();
+  PD_UFP.handle();
   switch(PD_UFP.get_ps_status())
   {
     case STATUS_POWER_PPS:

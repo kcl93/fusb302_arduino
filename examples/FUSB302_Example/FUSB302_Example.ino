@@ -13,7 +13,7 @@ void setup() {
 }
 
 void loop() {
-  PD_UFP.run();
+  PD_UFP.handle();
   if (PD_UFP.get_ps_status() == STATUS_POWER_TYP)
   {
     Serial.write("PD supply connected\n");

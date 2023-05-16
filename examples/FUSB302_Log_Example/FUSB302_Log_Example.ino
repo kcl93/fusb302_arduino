@@ -13,6 +13,6 @@ void setup() {
 }
 
 void loop() {
-  PD_UFP.run();
+  PD_UFP.handle();
   PD_UFP.print_status(Serial);
 }

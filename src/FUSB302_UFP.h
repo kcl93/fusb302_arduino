@@ -21,15 +21,15 @@
 #include <Wire.h>
 #include <stdint.h>
 
-enum {
+typedef enum : uint8_t
+{
     FUSB302_SUCCESS             = 0,
     FUSB302_BUSY                = (1 << 0),
     FUSB302_ERR_PARAM           = (1 << 1),
     FUSB302_ERR_DEVICE_ID       = (1 << 2),
     FUSB302_ERR_READ_DEVICE     = (1 << 3),
     FUSB302_ERR_WRITE_DEVICE    = (1 << 4)
-};
-typedef uint8_t FUSB302_ret_t;
+} FUSB302_ret_t;
 
 #define FUSB302_EVENT_ATTACHED          (1 << 0)
 #define FUSB302_EVENT_DETACHED          (1 << 1)
