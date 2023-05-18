@@ -118,7 +118,10 @@ typedef struct PD_msg_state PD_msg_state_t;
 class PD_UFP_Protocol_c
 {
     public:
-        // Constructor
+        /**
+         * @brief Constructor
+         * 
+         */
         PD_UFP_Protocol_c(void) { init(); }
         
         /* Message handler */
@@ -132,8 +135,20 @@ class PD_UFP_Protocol_c
 
         /* Get functions */
         uint8_t  get_selected_power() { return this->power_data_obj_selected; }
-        uint16_t get_PPS_voltage() { return this->PPS_voltage * 20; } /* Voltage in mV */
-        uint16_t  get_PPS_current() { return (uint16_t)this->PPS_current * 50; } /* Current in mA */
+
+        /**
+         * @brief Get the PPS voltage
+         * 
+         * @return Voltage in mV 
+         */
+        uint16_t get_PPS_voltage() { return this->PPS_voltage * 20; }
+
+        /**
+         * @brief Get the PPS current
+         * 
+         * @return Current in mA 
+         */
+        uint16_t  get_PPS_current() { return (uint16_t)this->PPS_current * 50; }
 
         uint16_t get_tx_msg_header() { return this->tx_msg_header; }
         uint16_t get_rx_msg_header() { return this->rx_msg_header; }
@@ -147,9 +162,17 @@ class PD_UFP_Protocol_c
         bool set_power_option(PD_power_option_t option);
         bool select_power(uint8_t index);
 
-        /* Set PPS Voltage in mV, Current in mA. return true if re-send request is needed
-           strict=true, If PPS setting is not qualified, return false, nothing is changed.
-           strict=false, if PPS setting is not qualified, fall back to regular power option */
+        /**
+         * @brief Set PPS voltage and current
+         * 
+         * @param PPS_voltage   Voltage in mV
+         * @param PPS_current   Current in mA
+         * @param strict        If true, nothing is being changed in case of not qualified settings,
+         *                      else falls back to the regular power option
+         * 
+         * @return true         If PPS setting is qualified or strict is false
+         * @return false        If PPS setting is not qualified and strict is true
+         */
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current, bool strict);  
 
         void reset(void);
@@ -162,7 +185,7 @@ class PD_UFP_Protocol_c
         uint8_t message_id;
 
         uint16_t PPS_voltage; // in 20mV steps
-        uint8_t PPS_current; // in 50mA steps
+        uint16_t PPS_current; // in 50mA steps
         uint8_t PPSSDB[4];  /* PPS Status Data Block */
 
         PD_power_option_t power_option;
