@@ -260,11 +260,15 @@ FUSB302_ret_t FUSB302_dev_c::i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_
     this->twoWire.beginTransmission(dev_addr);
     this->twoWire.write(reg_addr);
     this->twoWire.endTransmission();
-    this->twoWire.requestFrom(dev_addr, count);
-    while (this->twoWire.available() && count > 0)
+    if (count > 0)
     {
-        *data++ = this->twoWire.read();
-        count--;
+        this->twoWire.clearWireTimeoutFlag();
+        this->twoWire.requestFrom(dev_addr, count);
+        while ((this->twoWire.getWireTimeoutFlag() == false) && (this->twoWire.available() == true) && (count > 0))
+        {
+            *data++ = this->twoWire.read();
+            count--;
+        }
     }
     return count == 0 ? FUSB302_SUCCESS : FUSB302_ERR_READ_DEVICE;
 }
@@ -278,8 +282,8 @@ FUSB302_ret_t FUSB302_dev_c::i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8
         this->twoWire.write(*data++);
         count--;
     }
-    this->twoWire.endTransmission();
-    return FUSB302_SUCCESS;
+    uint8_t ret = this->twoWire.endTransmission();
+    return (ret == 0) ? FUSB302_SUCCESS : FUSB302_ERR_WRITE_DEVICE;
 }
 
 FUSB302_ret_t FUSB302_dev_c::reg_read(uint8_t address, uint8_t *data, uint8_t count)
