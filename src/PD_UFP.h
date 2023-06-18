@@ -37,7 +37,7 @@ class PD_UFP_c
         PD_UFP_c(TwoWire &twoWire);
 
         /**
-         * @brief Initializes the class for operation in normal, non PPS mode
+         * @brief Initializes the class for operation in normal, non PPS mode (it also sets the I2C speed to 400kHz)
          * 
          * @param int_pin       Pin number where the INT signal of the FUSB302 is connected to
          * @param power_option  Target power option (default = 5V)

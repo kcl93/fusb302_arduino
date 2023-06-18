@@ -450,6 +450,9 @@ FUSB302_ret_t FUSB302_dev_c::state_attached(FUSB302_event_t * events)
 
 FUSB302_ret_t FUSB302_dev_c::init()
 {
+    Wire.begin();
+    Wire.setClock(400000);
+    
     if (this->i2c_address == 0)
     {
         this->err_msg = FUSB302_ERR_MSG("Invalid i2c address");
