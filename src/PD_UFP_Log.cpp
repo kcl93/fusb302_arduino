@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "PD_UFP.h"
+#include "PD_UFP_Log.h"
 
 enum {
     STATUS_LOG_MSG_TX,
