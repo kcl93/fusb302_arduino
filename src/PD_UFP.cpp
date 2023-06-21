@@ -97,13 +97,14 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
 
 void PD_UFP_c::handle(void)
 {
-    if (timer() || (digitalRead(int_pin) == 0))
+    if ((this->timer() == true) || (digitalRead(this->int_pin) == 0))
     {
+        this->FUSB302.get_active_interrupts();
         FUSB302_event_t FUSB302_events = 0;
-        for (uint8_t i = 0; (i < 3) && (this->FUSB302.alert(&FUSB302_events) != FUSB302_SUCCESS); i++) {}
-        if (FUSB302_events)
+        for (uint8_t i = 0; (i < 3) && (this->FUSB302.alert(&FUSB302_events) != FUSB302_SUCCESS); i++);
+        if (FUSB302_events != 0)
         {
-            handle_FUSB302_event(FUSB302_events);
+            this->handle_FUSB302_event(FUSB302_events);
         }
     }
 }
