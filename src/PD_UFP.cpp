@@ -252,7 +252,7 @@ void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
 bool PD_UFP_c::timer(void)
 {
     uint16_t t = clock_ms();
-    if (wait_src_cap && t - time_wait_src_cap > t_TypeCSinkWaitCap) {
+    if (wait_src_cap && (uint16_t)(t - time_wait_src_cap) > t_TypeCSinkWaitCap) {
         time_wait_src_cap = t;
         if (get_src_cap_retry_count < 3) {
             uint16_t header;
@@ -269,11 +269,11 @@ bool PD_UFP_c::timer(void)
         }
     }
     if (wait_ps_rdy) {
-        if (t - time_wait_ps_rdy > t_RequestToPSReady) {
+        if ((uint16_t)(t - time_wait_ps_rdy) > t_RequestToPSReady) {
             wait_ps_rdy = 0;
             set_default_power();
         }
-    } else if (send_request || (status_power == STATUS_POWER_PPS && t - time_PPS_request > t_PPSRequest)) {
+    } else if (send_request || (status_power == STATUS_POWER_PPS && (uint16_t)(t - time_PPS_request) > t_PPSRequest)) {
         wait_ps_rdy = 1;
         send_request = 0;
         time_PPS_request = t;
@@ -285,7 +285,7 @@ bool PD_UFP_c::timer(void)
         time_wait_ps_rdy = clock_ms();
         FUSB302_tx_sop(&FUSB302, header, obj);
     }
-    if (t - time_polling > t_PD_POLLING) {
+    if ((uint16_t)(t - time_polling) > t_PD_POLLING) {
         time_polling = t;
         return true;
     }
